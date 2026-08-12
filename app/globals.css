@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 8 9 13;
+  --foreground: 240 240 245;
+  --muted: 100 100 110;
+  --border: 38 42 56;
+  --accent: 249 115 22;
+}
+
+html,
+body {
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249, 115, 22, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 20%, rgba(56, 189, 248, 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+* {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.glass {
+  background: rgba(20, 22, 30, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all;
+}
+
+.btn-primary {
+  @apply btn bg-accent-500 text-white hover:bg-accent-600 shadow-[0_8px_30px_-8px_rgba(249,115,22,0.5)] hover:shadow-[0_10px_40px_-8px_rgba(249,115,22,0.6)];
+}
+
+.btn-secondary {
+  @apply btn bg-ink-700 text-white/90 hover:bg-ink-600 border border-white/5;
+}
+
+.btn-ghost {
+  @apply btn text-white/70 hover:text-white hover:bg-white/5;
+}
+
+.card {
+  @apply glass rounded-2xl;
+}
+
+.chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  animation: shimmer 2s infinite;
+}
