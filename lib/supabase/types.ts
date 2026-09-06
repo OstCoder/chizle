@@ -30,6 +30,8 @@ export interface OnboardingProfile {
   age: string;
   unitSystem: UnitSystem;
   height: string;
+  heightFeet: string;
+  heightInches: string;
   weight: string;
   hairType: HairType | "";
   goals: Goal[];
@@ -40,6 +42,8 @@ export const EMPTY_ONBOARDING_PROFILE: OnboardingProfile = {
   age: "",
   unitSystem: "imperial",
   height: "",
+  heightFeet: "",
+  heightInches: "",
   weight: "",
   hairType: "",
   goals: [],

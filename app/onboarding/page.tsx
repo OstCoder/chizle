@@ -21,11 +21,20 @@ export default function OnboardingPage() {
   const progress = ((step + 1) / steps.length) * 100;
   const current = steps[step];
 
+  // Canonical height: cm for metric, total inches for imperial (feet*12 + inches).
+  const heightValue = useMemo(() => {
+    if (profile.unitSystem === "metric") return profile.height;
+    const feet = Number(profile.heightFeet);
+    const inches = Number(profile.heightInches || 0);
+    if (!Number.isFinite(feet) || !Number.isFinite(inches) || (feet <= 0 && inches <= 0)) return "";
+    return String(feet * 12 + inches);
+  }, [profile.unitSystem, profile.height, profile.heightFeet, profile.heightInches]);
+
   const canContinue = useMemo(() => {
     if (step === 0) return Boolean(profile.gender && profile.age);
-    if (step === 1) return Boolean(profile.height && profile.weight);
+    if (step === 1) return Boolean(heightValue && Number(heightValue) > 0 && Number(profile.weight) > 0);
     return Boolean(profile.hairType && profile.goals.length);
-  }, [profile, step]);
+  }, [profile, step, heightValue]);
 
   function update<K extends keyof OnboardingProfile>(key: K, value: OnboardingProfile[K]) {
     setProfile((currentProfile) => ({ ...currentProfile, [key]: value }));
@@ -49,7 +58,7 @@ export default function OnboardingPage() {
     setSaving(true);
     setError(null);
     try {
-      await saveOnboardingProfile(profile);
+      await saveOnboardingProfile({ ...profile, height: heightValue });
       router.replace("/dashboard");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Could not save your profile.");
@@ -91,7 +100,30 @@ function StepAbout({ profile, update }: { profile: OnboardingProfile; update: <K
 
 function StepBaseline({ profile, update }: { profile: OnboardingProfile; update: <K extends keyof OnboardingProfile>(key: K, value: OnboardingProfile[K]) => void }) {
   const metric = profile.unitSystem === "metric";
-  return <div className="mt-8"><div className="mb-6 inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1"><button type="button" onClick={() => update("unitSystem", "imperial")} className={`rounded-lg px-4 py-2 text-sm font-medium ${!metric ? "bg-accent-500 text-white" : "text-white/50"}`}>Imperial</button><button type="button" onClick={() => update("unitSystem", "metric")} className={`rounded-lg px-4 py-2 text-sm font-medium ${metric ? "bg-accent-500 text-white" : "text-white/50"}`}>Metric</button></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label={`Height (${metric ? "cm" : "in"})`} value={profile.height} placeholder={metric ? "178" : "70"} onChange={(value) => update("height", value)} /><NumberField label={`Weight (${metric ? "kg" : "lb"})`} value={profile.weight} placeholder={metric ? "75" : "165"} onChange={(value) => update("weight", value)} /></div><div className="mt-6 flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/55"><Ruler className="mt-0.5 h-4 w-4 shrink-0 text-accent-300" />Use your best estimate. These stats help tailor recommendations; they are not used to judge your appearance.</div></div>;
+  return (
+    <div className="mt-8">
+      <div className="mb-6 inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+        <button type="button" onClick={() => update("unitSystem", "imperial")} className={`rounded-lg px-4 py-2 text-sm font-medium ${!metric ? "bg-accent-500 text-white" : "text-white/50"}`}>Imperial</button>
+        <button type="button" onClick={() => update("unitSystem", "metric")} className={`rounded-lg px-4 py-2 text-sm font-medium ${metric ? "bg-accent-500 text-white" : "text-white/50"}`}>Metric</button>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {metric ? (
+          <NumberField label="Height (cm)" value={profile.height} placeholder="178" onChange={(value) => update("height", value)} />
+        ) : (
+          <fieldset>
+            <legend className="text-sm font-medium text-white/75">Height (feet + inches)</legend>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <NumberField label="Feet" value={profile.heightFeet} placeholder="5" onChange={(value) => update("heightFeet", value)} />
+              <NumberField label="Inches" value={profile.heightInches} placeholder="10" onChange={(value) => update("heightInches", value)} />
+            </div>
+            <p className="mt-2 text-xs text-white/40">e.g. 5 ft 10 in</p>
+          </fieldset>
+        )}
+        <NumberField label={`Weight (${metric ? "kg" : "lb"})`} value={profile.weight} placeholder={metric ? "75" : "165"} onChange={(value) => update("weight", value)} />
+      </div>
+      <div className="mt-6 flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/55"><Ruler className="mt-0.5 h-4 w-4 shrink-0 text-accent-300" />Use your best estimate. These stats help tailor recommendations; they are not used to judge your appearance.</div>
+    </div>
+  );
 }
 
 function StepStyle({ profile, update }: { profile: OnboardingProfile; update: <K extends keyof OnboardingProfile>(key: K, value: OnboardingProfile[K]) => void }) {
