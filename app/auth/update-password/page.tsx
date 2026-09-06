@@ -114,7 +114,7 @@ export default function UpdatePasswordPage() {
           </form>
           <div className="mt-6 flex items-center gap-2 text-xs text-white/45">
             <ShieldCheck className="h-4 w-4 text-accent-400" />
-            You'll be signed in after updating.
+            You&apos;ll be signed in after updating.
           </div>
         </>
       )}
