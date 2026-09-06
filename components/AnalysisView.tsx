@@ -24,8 +24,8 @@ export function AnalysisView({ report, image, landmarks }: AnalysisViewProps) {
   const width = image?.naturalWidth ?? 0;
   const height = image?.naturalHeight ?? 0;
   return (
-    <div className="grid gap-6 lg:grid-cols-[460px,1fr]">
-      <div className="space-y-4">
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[460px,minmax(0,1fr)]">
+      <div className="min-w-0 space-y-4">
         <div className="card overflow-hidden p-1">
           <MeshOverlay
             image={image}
@@ -38,7 +38,7 @@ export function AnalysisView({ report, image, landmarks }: AnalysisViewProps) {
           <Summary report={report} />
         </div>
       </div>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <HairCard shape={report.shape} hair={report.hair ?? UNKNOWN_HAIR} />
         <HighlightsCard report={report} />
       </div>

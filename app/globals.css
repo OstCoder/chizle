@@ -84,10 +84,24 @@ body {
   100% { transform: translateX(100%); }
 }
 
+.animate-counter-pop {
+  display: inline-block;
+}
+
 .shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
   animation: shimmer 2s infinite;
+}
+
+/* Count-up ticker for formatted counters (lib/useCountUp + StatNumber) */
+@keyframes count-fade {
+  0% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+.count-fade {
+  animation: count-fade 0.3s ease-out;
 }

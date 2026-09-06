@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Plus, SprayCan, X } from "lucide-react";
-import { hubGet, hubSet, makeId, type Scent } from "@/lib/hub";
+import {
+  hubGet,
+  hubSet,
+  makeId,
+  subscribeHub,
+  type Scent,
+} from "@/lib/hub";
 
 interface FragranceWardrobeCardProps {
   userId: string;
@@ -30,7 +36,11 @@ const NOTE_TONE: Record<string, string> = {
   Amber: "border-orange-400/25 bg-orange-400/10 text-orange-300",
 };
 
-/** Personal fragrance collection with a woody/fresh/citrus… notes breakdown. */
+/**
+ * Personal fragrance collection with a woody/fresh/citrus… notes breakdown.
+ * Changes are broadcast via the hub storage event so sibling cards
+ * (Scent of the Day) re-read the wardrobe the moment it changes.
+ */
 export function FragranceWardrobeCard({ userId }: FragranceWardrobeCardProps) {
   const [scents, setScents] = useState<Scent[]>([]);
   const [name, setName] = useState("");
@@ -38,6 +48,11 @@ export function FragranceWardrobeCard({ userId }: FragranceWardrobeCardProps) {
 
   useEffect(() => {
     setScents(hubGet<Scent[]>(userId, "scents", []));
+    // Another card (e.g. Scent of the Day) may write its own keys; only
+    // wardrobe writes touch "scents", so a key filter keeps this cheap.
+    return subscribeHub(userId, "scents", () => {
+      setScents(hubGet<Scent[]>(userId, "scents", []));
+    });
   }, [userId]);
 
   const toggleNote = (note: string) => {

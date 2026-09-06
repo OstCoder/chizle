@@ -7,15 +7,9 @@ import {
   Scissors,
   SprayCan,
 } from "lucide-react";
-import { sculptList } from "@/lib/glow";
 import {
-  daysSince,
-  EMPTY_HAIR_STATUS,
   hubGet,
-  loadDayIds,
   todayKey,
-  type GroomingProduct,
-  type HairStatus,
   type Scent,
   type ScentOfDay,
 } from "@/lib/hub";
@@ -45,20 +39,6 @@ interface PreviewTile {
 export function HubPreviews({ userId, profile, report }: HubPreviewsProps) {
   const dateKey = todayKey();
 
-  // Facial fitness (Sculpt List)
-  const sculptItems = sculptList(report);
-  const sculptDone = sculptItems.filter((i) =>
-    loadDayIds(userId, "sculpt", dateKey).includes(i.id),
-  ).length;
-
-  // Grooming
-  const hair = hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS);
-  const trimDays = daysSince(hair.lastTrim);
-  const products = hubGet<GroomingProduct[]>(userId, "products", []);
-  const appliedToday = loadDayIds(userId, "products-applied", dateKey).filter(
-    (id) => products.some((p) => p.id === id),
-  ).length;
-
   // Fragrance
   const scents = hubGet<Scent[]>(userId, "scents", []);
   const scentPick = hubGet<ScentOfDay>(userId, `scent:${dateKey}`, {
@@ -74,22 +54,18 @@ export function HubPreviews({ userId, profile, report }: HubPreviewsProps) {
     {
       href: "/habits",
       icon: <Dumbbell className="h-4 w-4" />,
-      title: "Sculpt, Train & Recover",
-      blurb: "Facial fitness, training plan, sets, water, and recovery",
-      stat:
-        sculptItems.length > 0
-          ? `${sculptDone}/${sculptItems.length} sculpt reps · ${weekSets} set${weekSets === 1 ? "" : "s"} this week`
-          : `${weekSets} set${weekSets === 1 ? "" : "s"} this week · open the sculpt list`,
+      title: "Train & Recover",
+      blurb: "Training plan, sets, water, and recovery",
+      stat: `${weekSets} set${weekSets === 1 ? "" : "s"} this week`,
     },
     {
       href: "/grooming",
       icon: <Scissors className="h-4 w-4" />,
       title: "Hair & Grooming",
-      blurb: "Trim cadence, appointments, product regimen",
-      stat:
-        trimDays !== null
-          ? `${trimDays} days since trim · ${appliedToday} product${appliedToday === 1 ? "" : "s"} applied`
-          : `${products.length} product${products.length === 1 ? "" : "s"} · set your trim date`,
+      blurb: "Scan-driven reads, beard try-on, product picks",
+      stat: report
+        ? "Scan ready — reads + try-on loaded"
+        : "Analyze a photo to unlock reads",
     },
     {
       href: "/fragrance",
@@ -101,7 +77,7 @@ export function HubPreviews({ userId, profile, report }: HubPreviewsProps) {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {tiles.map((tile) => (
         <Link
           key={tile.href}

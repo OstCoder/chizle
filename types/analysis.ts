@@ -198,6 +198,14 @@ export interface Weakspot {
 
 export interface AnalysisReport {
   angle: Angle;
+  /**
+   * True when the photo is a side / profile shot (|yaw| >= 55°). Side photos
+   * get a clamped report: no geometry-derived scores or weakspots, a fixed
+   * "can't analyze due to angle" summary, and the UI shows an angle guard
+   * instead of the analysis output. Optional so legacy persisted reports
+   * (pre-guard) still type-check; absence is treated as false.
+   */
+  sideAngle?: boolean;
   shape: FaceShape;
   ratios: FaceRatios;
   symmetry: SymmetryReport;

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { SectionHeader } from "@/components/dashboard/SectionHeader";
-import { SculptListCard } from "@/components/dashboard/SculptListCard";
 import { SkinHealthCard } from "@/components/dashboard/SkinHealthCard";
 import { TrainingPlanCard } from "@/components/dashboard/TrainingPlanCard";
 import { SetTrackerCard } from "@/components/dashboard/SetTrackerCard";
@@ -44,58 +43,49 @@ export default function HabitsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Fitness & Habits"
-        title="Sculpt, train & recover"
-        subtitle="Facial-fitness practice, a training plan built around your profile, set-by-set logging, hydration goals, and recovery check-ins — the inputs that show up in your next scan."
+        title="Train & recover"
+        subtitle="A training plan built around your profile, set-by-set logging, hydration goals, and recovery check-ins — the inputs that show up in your next scan."
       />
 
-      {/* 01 — Facial fitness */}
-      <div className="space-y-6">
-        <SectionHeader
-          index="01"
-          title="Facial Fitness & Complexion"
-          subtitle="The daily Sculpt List, paired with how your skin photographs in each scan."
-        />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <SculptListCard userId={user.id} report={report} />
-          <SkinHealthCard entries={entries} />
-        </div>
-      </div>
+      {/* 01 — Skin */}
+      <SectionHeader
+        index="01"
+        title="Complexion"
+        subtitle="How your skin photographs across scans."
+      />
+      <SkinHealthCard entries={entries} />
 
       {/* 02 — Training plan & sets */}
-      <div className="space-y-6">
-        <SectionHeader
-          index="02"
-          title="Training Plan & Sets"
-          subtitle="A gym or at-home split built from your profile, with daily set logging."
-        />
-        <TrainingPlanCard
-          profile={profile}
-          report={report}
-          variant={variant}
-          onVariantChange={setVariant}
-        />
-        <SetTrackerCard
-          userId={user.id}
-          profile={profile}
-          report={report}
-          variant={variant}
-        />
-      </div>
+      <SectionHeader
+        index="02"
+        title="Training Plan & Sets"
+        subtitle="A gym or at-home split built from your profile, with daily set logging."
+      />
+      <TrainingPlanCard
+        profile={profile}
+        report={report}
+        variant={variant}
+        onVariantChange={setVariant}
+      />
+      <SetTrackerCard
+        userId={user.id}
+        profile={profile}
+        report={report}
+        variant={variant}
+      />
 
       {/* 03 — Fuel & recovery */}
-      <div className="space-y-6">
-        <SectionHeader
-          index="03"
-          title="Fuel & Recovery"
-          subtitle="Hydration goals and recovery check-ins between sessions."
+      <SectionHeader
+        index="03"
+        title="Fuel & Recovery"
+        subtitle="Hydration goals and recovery check-ins between sessions."
+      />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <WaterTrackerCard
+          userId={user.id}
+          recommended={waterTarget(profile ?? {})}
         />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <WaterTrackerCard
-            userId={user.id}
-            recommended={waterTarget(profile ?? {})}
-          />
-          <RoutineLogsCard userId={user.id} />
-        </div>
+        <RoutineLogsCard userId={user.id} />
       </div>
     </div>
   );

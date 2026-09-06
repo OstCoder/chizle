@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ImageUploader } from "@/components/ImageUploader";
 import { AnalysisView } from "@/components/AnalysisView";
+import { AngleGuard } from "@/components/AngleGuard";
 import { LoadingPanel } from "@/components/LoadingPanel";
 import { HistoryStrip, type HistoryItem } from "@/components/HistoryStrip";
 import { CopyButton } from "@/components/CopyButton";
@@ -39,6 +40,13 @@ export default function AnalyzePage() {
     image,
     restored,
   );
+
+  // Side / profile photos are rejected with a friendly guard: FaceMesh
+  // geometry (ratios, symmetry) is only meaningful front-on. The flag is
+  // also checked for legacy persisted reports that predate `sideAngle`.
+  const sideAngle =
+    report !== null &&
+    (report.sideAngle === true || report.angle === "profile");
 
   const refreshHistory = useCallback(() => {
     setHistory(loadHistory("analyze") as PersistedAnalysis[]);
@@ -80,9 +88,11 @@ export default function AnalyzePage() {
     refreshHistory();
   }, [scopeReady, refreshHistory]);
 
-  // Persist the freshest analysis to the front of the history.
+  // Persist the freshest analysis to the front of the history. Rejected
+  // (side-angle) scans are not results — don't clutter history with them.
   useEffect(() => {
     if (!report || !image || !scopeReady) return;
+    if (report.sideAngle === true || report.angle === "profile") return;
     saveAnalysis("analyze", {
       report,
       landmarks,
@@ -163,7 +173,7 @@ export default function AnalyzePage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <ImageUploader
             onImage={(data, img) => {
               if (!data) {
@@ -188,7 +198,7 @@ export default function AnalyzePage() {
           )}
         </div>
 
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {!image && !restored && (
             <div className="card flex h-full min-h-[260px] flex-col items-center justify-center gap-2 p-6 text-center">
               <span className="grid h-12 w-12 place-items-center rounded-xl bg-white/5">
@@ -223,7 +233,8 @@ export default function AnalyzePage() {
           {error && (
             <div className="card p-5 text-sm text-red-300">{error}</div>
           )}
-          {report && (image || restored) && (
+          {report && (image || restored) && sideAngle && <AngleGuard />}
+          {report && (image || restored) && !sideAngle && (
             <div className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent-400" />
@@ -283,7 +294,7 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      {report && imgEl && (
+      {report && imgEl && !sideAngle && (
         <div className="pt-2">
           <AnalysisView report={report} image={imgEl} landmarks={landmarks} />
         </div>

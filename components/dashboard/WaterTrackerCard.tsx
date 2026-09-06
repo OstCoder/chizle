@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Droplets, Minus, Plus, RotateCcw } from "lucide-react";
+import { StatNumber } from "@/components/StatNumber";
 import { hubGet, hubSet, todayKey } from "@/lib/hub";
 
 interface WaterTrackerCardProps {
@@ -137,13 +138,13 @@ export function WaterTrackerCard({ userId, recommended }: WaterTrackerCardProps)
         )}
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-4xl font-semibold tracking-tight text-white">
-            {ml >= 1000 ? (ml / 1000).toFixed(1) : ml}
-            <span className="ml-1 text-sm font-normal text-white/40">
-              {ml >= 1000 ? "L" : "ml"}
-            </span>
+      <div className="mt-4 grid grid-cols-3 items-end gap-3">
+        <div className="col-span-2">
+          <p className="text-[11px] uppercase tracking-wider text-white/40">
+            Today&apos;s intake
+          </p>
+          <p className="mt-1 text-4xl font-semibold tracking-tight text-white">
+            <StatNumber value={ml} suffix={ml >= 1000 ? "L" : "ml"} />
           </p>
           <p className="mt-1 text-xs text-white/45">
             {remaining > 0
@@ -151,9 +152,12 @@ export function WaterTrackerCard({ userId, recommended }: WaterTrackerCardProps)
               : "Goal reached — nice work"}
           </p>
         </div>
-        <p className="font-mono text-xs text-white/40">
-          goal {fmtMl(target)}
-        </p>
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-3 text-right">
+          <p className="text-[11px] uppercase tracking-wider text-white/40">Goal</p>
+          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white/85">
+            {fmtMl(target)}
+          </p>
+        </div>
       </div>
 
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/5">

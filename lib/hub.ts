@@ -61,9 +61,35 @@ export function hubSet(userId: string, key: string, value: unknown): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(hubKey(userId, key), JSON.stringify(value));
+    // Broadcast to same-tab subscribers (the native `storage` event only
+    // fires across tabs), so sibling cards re-read shared state instantly —
+    // e.g. adding a scent to the wardrobe updates Scent of the Day.
+    window.dispatchEvent(new CustomEvent(HUB_EVENT, { detail: { userId, key } }));
   } catch {
     /* ignore quota / privacy-mode failures */
   }
+}
+
+const HUB_EVENT = "chizle:hub";
+
+/**
+ * Subscribe to same-tab hub writes. `keyFilter` optionally scopes the
+ * callback to a single storage key. Returns an unsubscribe function.
+ */
+export function subscribeHub(
+  userId: string,
+  keyFilter: string | null,
+  onChange: () => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+  const handler = (event: Event) => {
+    const detail = (event as CustomEvent<{ userId: string; key: string }>).detail;
+    if (!detail || detail.userId !== userId) return;
+    if (keyFilter && detail.key !== keyFilter) return;
+    onChange();
+  };
+  window.addEventListener(HUB_EVENT, handler);
+  return () => window.removeEventListener(HUB_EVENT, handler);
 }
 
 // ---------------------------------------------------------------------------

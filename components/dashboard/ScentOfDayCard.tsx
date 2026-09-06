@@ -5,6 +5,7 @@ import { Check, Sparkle } from "lucide-react";
 import {
   hubGet,
   hubSet,
+  subscribeHub,
   todayKey,
   type Scent,
   type ScentOfDay,
@@ -47,6 +48,11 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
         occasion: "Everyday",
       }),
     );
+    // Re-read the wardrobe whenever it changes so a scent added in the
+    // Fragrance Wardrobe card is selectable immediately.
+    return subscribeHub(userId, "scents", () => {
+      setScents(hubGet<Scent[]>(userId, "scents", []));
+    });
   }, [userId, dateKey]);
 
   const currentScent = scents.find((s) => s.id === pick.scentId) ?? null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Flame, Minus, Plus, Target } from "lucide-react";
 import {
   buildTrainingPlan,
@@ -29,6 +29,22 @@ interface SetTrackerCardProps {
   variant: TrainingVariant;
 }
 
+/** Briefly flashes the `pop` class so a value change animates. */
+function usePop(value: number): string {
+  const [popping, setPopping] = useState(false);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setPopping(true);
+    const t = window.setTimeout(() => setPopping(false), 400);
+    return () => window.clearTimeout(t);
+  }, [value]);
+  return popping ? " animate-counter-pop" : "";
+}
+
 /**
  * Set tracker — log completed sets for today's plan day with tap steppers,
  * against a weekly goal that is recommended from the active plan by default,
@@ -51,6 +67,10 @@ export function SetTrackerCard({
   const [log, setLog] = useState<TrainingLog>({ variant, day: 0, done: {} });
   const [goal, setGoal] = useState<TrainingGoal>(EMPTY_TRAINING_GOAL);
   const [draft, setDraft] = useState("");
+  // Previous streak value drives the flame animation: when the streak goes
+  // UP, the flame ignites (color + bounce + glow), Duolingo-style.
+  const [flameUp, setFlameUp] = useState(false);
+  const prevStreak = useRef<number | null>(null);
 
   useEffect(() => {
     const storedGoal = loadTrainingGoal(userId);
@@ -109,8 +129,25 @@ export function SetTrackerCard({
     0,
   );
   const weekSets = setsThisWeek(userId);
-  const weekPct = Math.min(100, Math.round((weekSets / target) * 100));
+  const weekPct = target > 0 ? Math.min(100, Math.round((weekSets / target) * 100)) : 0;
   const streak = trainingWorkoutStreak(userId);
+  const sessionPop = usePop(sessionSets);
+  const weekPop = usePop(weekSets);
+
+  // Ignite the flame whenever the streak increases past its previous value.
+  useEffect(() => {
+    if (prevStreak.current === null) {
+      prevStreak.current = streak;
+      return;
+    }
+    if (streak > prevStreak.current) {
+      setFlameUp(true);
+      const t = window.setTimeout(() => setFlameUp(false), 1600);
+      prevStreak.current = streak;
+      return () => window.clearTimeout(t);
+    }
+    prevStreak.current = streak;
+  }, [streak]);
 
   return (
     <section className="card animate-fade-up p-6">
@@ -121,9 +158,59 @@ export function SetTrackerCard({
           </p>
           <h2 className="mt-1 text-lg font-semibold text-white">Set tracker</h2>
         </div>
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-white/60">
-          <Flame className="h-3.5 w-3.5 text-accent-400" />
-          {streak}-day streak
+        {/* Streak flame — ignites (color + bounce) when the streak goes up */}
+        <div
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-300 ${
+            streak > 0
+              ? "bg-orange-500/10 text-orange-300 ring-1 ring-orange-400/25"
+              : "text-white/40 ring-1 ring-white/10"
+          } ${flameUp ? "animate-flame-ignite" : ""}`}
+          aria-label={`${streak} day workout streak`}
+        >
+          <Flame
+            className={`h-4 w-4 transition-all duration-300 ${
+              streak > 0
+                ? flameUp
+                  ? "text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.9)]"
+                  : "text-orange-400"
+                : "text-white/30"
+            }`}
+          />
+          {streak === 0 ? "No streak yet" : `${streak}-day streak`}
+        </div>
+      </div>
+
+      {/* Formatted counters */}
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+          <p className="text-[11px] uppercase tracking-wider text-white/40">
+            Today&apos;s session
+          </p>
+          <p
+            className={`mt-1 font-mono text-2xl font-semibold tabular-nums text-white${sessionPop}`}
+          >
+            {sessionSets}
+            <span className="text-base font-normal text-white/40">
+              {" "}
+              / {sessionTarget}
+              <span className="ml-1 text-xs">sets</span>
+            </span>
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+          <p className="text-[11px] uppercase tracking-wider text-white/40">
+            This week
+          </p>
+          <p
+            className={`mt-1 font-mono text-2xl font-semibold tabular-nums text-white${weekPop}`}
+          >
+            {weekSets}
+            <span className="text-base font-normal text-white/40">
+              {" "}
+              / {target}
+              <span className="ml-1 text-xs">sets</span>
+            </span>
+          </p>
         </div>
       </div>
 
@@ -186,11 +273,8 @@ export function SetTrackerCard({
             {session.label} <span className="text-white/40">·</span>{" "}
             <span className="text-accent-200">{session.focus}</span>
           </p>
-          <span className="font-mono text-xs text-white/40">
-            {sessionSets}/{sessionTarget} sets
-          </span>
         </div>
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {session.exercises.map((ex) => {
             const done = log.done[ex.id] ?? 0;
             const complete = done >= ex.sets;
@@ -223,7 +307,7 @@ export function SetTrackerCard({
                     <Minus className="h-3 w-3" />
                   </button>
                   <span
-                    className={`grid h-7 min-w-8 place-items-center rounded-lg px-1 font-mono text-xs font-semibold ${
+                    className={`grid h-7 min-w-8 place-items-center rounded-lg px-1 font-mono text-xs font-semibold tabular-nums ${
                       complete ? "bg-accent-500 text-white" : "text-white/70"
                     }`}
                   >
@@ -251,10 +335,10 @@ export function SetTrackerCard({
         <div className="flex items-center justify-between gap-3">
           <p className="flex items-center gap-1.5 text-xs font-medium text-white/70">
             <Target className="h-3.5 w-3.5 text-accent-300" />
-            This week&apos;s sets
+            Weekly goal
           </p>
-          <p className="font-mono text-xs text-white/50">
-            {weekSets} / {target} · {Math.max(0, target - weekSets)} to go
+          <p className="font-mono text-xs tabular-nums text-white/50">
+            {Math.max(0, target - weekSets)} to go
           </p>
         </div>
         <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-white/5">

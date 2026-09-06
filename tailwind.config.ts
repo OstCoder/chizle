@@ -44,10 +44,24 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "counter-pop": {
+          "0%": { transform: "scale(1)" },
+          "35%": { transform: "scale(1.18)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "flame-ignite": {
+          "0%": { transform: "scale(1) rotate(0deg)" },
+          "25%": { transform: "scale(1.25) rotate(-4deg)" },
+          "50%": { transform: "scale(1.12) rotate(3deg)" },
+          "75%": { transform: "scale(1.18) rotate(-2deg)" },
+          "100%": { transform: "scale(1) rotate(0deg)" },
+        },
       },
       animation: {
         scan: "scan 3.6s ease-in-out infinite",
         "fade-up": "fade-up 0.55s ease-out both",
+        "counter-pop": "counter-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "flame-ignite": "flame-ignite 0.8s ease-in-out 2",
       },
       backgroundImage: {
         "grid-fade":

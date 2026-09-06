@@ -49,20 +49,32 @@ export function analyze(
   const eyes = computeEyes(points, blendshapes);
   const hair = analyzeHair(imageData, points);
 
-  const weakspots = generateWeakspots({
-    ratios,
-    symmetry,
-    posture,
-    smile,
-    eyes,
-    shape,
-    angle: posture.angle,
-  });
+  // Side / profile shots get a clamped report: every geometric read
+  // (symmetry, thirds, chin projection) is meaningless once the face is
+  // turned away, so weakspots are suppressed and the summary is replaced.
+  // The UI (AngleGuard) reads sideAngle / angle to show the rejection card
+  // instead of the analysis output.
 
-  const summary = buildSummary(shape, ratios, symmetry, posture, smile, hair, blendshapes);
+  const isSideShot = posture.angle === "profile";
+  const weakspots = isSideShot
+    ? []
+    : generateWeakspots({
+        ratios,
+        symmetry,
+        posture,
+        smile,
+        eyes,
+        shape,
+        angle: posture.angle,
+      });
+
+  const summary = isSideShot
+    ? "Can't analyze photo due to angle — this looks like a side view. Retake it facing the camera straight-on."
+    : buildSummary(shape, ratios, symmetry, posture, smile, hair, blendshapes);
 
   return {
     angle: posture.angle,
+    sideAngle: isSideShot,
     shape,
     ratios,
     symmetry,
