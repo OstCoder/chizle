@@ -17,21 +17,17 @@ import {
   removeCompareEntry,
   savedAtLabel,
   saveComparePair,
+  setStorageScope,
   type PersistedAnalysis,
   type PersistedCompareEntry,
 } from "@/lib/persistence";
 import {
   imageDataToDataURL,
   imageDataToThumbURL,
-  imageToImageData,
   loadImageFromUrl,
 } from "@/lib/imageData";
-import { GitCompareArrows, Loader2, Sparkles } from "lucide-react";
-
-const SAMPLE_PAIR = [
-  "/test-faces/IMG_5735.jpg",
-  "/test-faces/IMG_6399.jpg",
-];
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import { GitCompareArrows } from "lucide-react";
 
 export default function ComparePage() {
   const [a, setA] = useState<ImageData | null>(null);
@@ -52,15 +48,35 @@ export default function ComparePage() {
   const aLoading = aR.loading;
   const bLoading = bR.loading;
   const anyLoading = aLoading || bLoading;
-  const [loadingPair, setLoadingPair] = useState(false);
-  const [pairError, setPairError] = useState<string | null>(null);
+  const [scopeReady, setScopeReady] = useState(false);
 
   const refreshHistory = useCallback(() => {
     setHistory(loadHistory("compare") as PersistedCompareEntry[]);
   }, []);
 
+  // Resolve the signed-in user before touching persisted history so each
+  // account only ever sees its own photos in the history strip.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isSupabaseConfigured()) {
+        setScopeReady(true);
+        return;
+      }
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      if (cancelled) return;
+      setStorageScope(data.user?.id ?? null);
+      setScopeReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Restore the latest comparison from a previous session, if both sides exist.
   useEffect(() => {
+    if (!scopeReady) return;
     const saved = loadLatestCompare();
     if (saved) {
       setRestoredA(saved.before);
@@ -74,11 +90,11 @@ export default function ComparePage() {
         .catch(() => setBImg(null));
     }
     refreshHistory();
-  }, [refreshHistory]);
+  }, [scopeReady, refreshHistory]);
 
   // Persist a pair to the front of history once both sides have fresh analyses.
   useEffect(() => {
-    if (!aR.report || !bR.report || !a || !b) return;
+    if (!aR.report || !bR.report || !a || !b || !scopeReady) return;
     const entry = saveComparePair({
       before: {
         report: aR.report,
@@ -95,30 +111,7 @@ export default function ComparePage() {
     });
     setActiveEntryId(entry.id);
     refreshHistory();
-  }, [aR.report, aR.landmarks, a, bR.report, bR.landmarks, b, refreshHistory]);
-
-  const loadSamplePair = async () => {
-    setLoadingPair(true);
-    setPairError(null);
-    try {
-      const [beforeImg, afterImg] = await Promise.all([
-        loadImageFromUrl(SAMPLE_PAIR[0]),
-        loadImageFromUrl(SAMPLE_PAIR[1]),
-      ]);
-      setA(imageToImageData(beforeImg));
-      setAImg(beforeImg);
-      setB(imageToImageData(afterImg));
-      setBImg(afterImg);
-      setRestoredA(null);
-      setRestoredB(null);
-      setActiveEntryId(null);
-    } catch (err) {
-      console.error(err);
-      setPairError("Could not load the sample photos. Please upload your own.");
-    } finally {
-      setLoadingPair(false);
-    }
-  };
+  }, [aR.report, aR.landmarks, a, bR.report, bR.landmarks, b, scopeReady, refreshHistory]);
 
   const handleRestore = useCallback((entry: PersistedCompareEntry) => {
     setA(null);
@@ -244,24 +237,6 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {!a && !b && (
-        <button
-          type="button"
-          onClick={loadSamplePair}
-          disabled={loadingPair || anyLoading}
-          className="btn-secondary flex items-center gap-1.5 disabled:opacity-60"
-        >
-          {loadingPair ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5 text-accent-400" />
-          )}
-          {loadingPair ? "Loading samples…" : "Try a sample before/after pair"}
-        </button>
-      )}
-      {pairError && (
-        <p className="text-xs text-red-400">{pairError}</p>
-      )}
       {(a || b || restoredA || restoredB) && (
         <button
           type="button"

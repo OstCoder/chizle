@@ -36,6 +36,21 @@ export type PersistSlot = "analyze" | "scorecard" | "compare";
 const PREFIX = "chizle:v2:";
 const MAX_HISTORY = 5;
 
+// Namespaces persisted history to the signed-in user so a shared browser
+// never surfaces one account's photos in another account's history strip.
+// Analyzer pages call setStorageScope() once the Supabase session resolves;
+// until then (or when no user is known) entries land in the "anon" bucket,
+// which is never rendered to a signed-in user.
+let storageScope = "anon";
+
+export function setStorageScope(scope: string | null | undefined): void {
+  storageScope = scope && scope.trim() ? scope.trim() : "anon";
+}
+
+function scopedPrefix(): string {
+  return PREFIX + storageScope + ":";
+}
+
 /** Runs once to carry v1 single-slot entries into the v2 history format. */
 const MIGRATION_FLAG = PREFIX + "migrated:v1";
 
@@ -71,7 +86,7 @@ function writeJson(key: string, value: unknown): void {
 }
 
 function historyKey(slot: PersistSlot): string {
-  return PREFIX + "history:" + slot;
+  return scopedPrefix() + "history:" + slot;
 }
 
 function isAnalysis(v: unknown): v is PersistedAnalysis {
@@ -95,7 +110,7 @@ function writeHistory(slot: PersistSlot, list: PersistedAnalysis[]): void {
 }
 
 function readCompareHistory(): PersistedCompareEntry[] {
-  const raw = readJson<unknown[]>(PREFIX + "history:compare");
+  const raw = readJson<unknown[]>(scopedPrefix() + "history:compare");
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (v): v is PersistedCompareEntry =>
@@ -109,7 +124,7 @@ function readCompareHistory(): PersistedCompareEntry[] {
 }
 
 function writeCompareHistory(list: PersistedCompareEntry[]): void {
-  writeJson(PREFIX + "history:compare", list.slice(0, MAX_HISTORY));
+  writeJson(scopedPrefix() + "history:compare", list.slice(0, MAX_HISTORY));
 }
 
 /** Drop the full-size image from the oldest entry so only the latest keeps it. */

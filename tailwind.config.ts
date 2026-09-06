@@ -33,6 +33,22 @@ const config: Config = {
       boxShadow: {
         glow: "0 0 0 1px rgba(249,115,22,0.25), 0 10px 40px -10px rgba(249,115,22,0.35)",
       },
+      keyframes: {
+        scan: {
+          "0%": { top: "0%", opacity: "0" },
+          "12%": { opacity: "0.9" },
+          "88%": { opacity: "0.9" },
+          "100%": { top: "100%", opacity: "0" },
+        },
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        scan: "scan 3.6s ease-in-out infinite",
+        "fade-up": "fade-up 0.55s ease-out both",
+      },
       backgroundImage: {
         "grid-fade":
           "radial-gradient(ellipse at top, rgba(249,115,22,0.12), transparent 60%)",

@@ -54,18 +54,18 @@ export default function Home() {
             non-invasive tweaks. No filters, no faking — just honest feedback.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/analyze" className="btn-primary">
+            <Link href="/auth?returnTo=/analyze" className="btn-primary">
               <ScanFace className="h-4 w-4" />
-              Analyze a photo <ArrowRight className="h-4 w-4" />
+              Create your profile <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/scorecard" className="btn-secondary">
+            <Link href="/auth?returnTo=/scorecard" className="btn-secondary">
               <Sparkles className="h-4 w-4" />
-              Run a scorecard
+              Log in to analyze
             </Link>
           </div>
           <div className="mt-8 flex items-center justify-center gap-2 text-xs text-white/40">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Runs on-device with MediaPipe. No uploads, no accounts.
+            Runs on-device with MediaPipe. Your photos stay private.
           </div>
         </div>
       </section>
@@ -117,12 +117,12 @@ export default function Home() {
         <Pillar
           icon={ShieldCheck}
           title="Private by design"
-          body="Everything runs in your browser. The image never leaves the device. No accounts, no telemetry, no uploads."
+          body="Everything runs in your browser. The image never leaves the device, while your personalized profile stays protected."
         />
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
-        <Step n="1" title="Upload or try a sample" body="Drop a front-facing photo, or start instantly with one of the bundled samples — nothing ever leaves your device." />
+        <Step n="1" title="Create your profile" body="Answer a few quick questions so Chizle can tailor your recommendations to your goals and style." />
         <Step n="2" title="Read the breakdown" body="Symmetry, ratios, posture, expression, hair, and prioritized weakspots with practical, non-invasive fixes." />
         <Step n="3" title="Compare and improve" body="Run a dating-profile scorecard, or compare two photos side by side to see what actually moved." />
       </section>

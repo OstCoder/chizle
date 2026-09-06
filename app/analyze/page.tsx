@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { ImageUploader } from "@/components/ImageUploader";
 import { AnalysisView } from "@/components/AnalysisView";
 import { LoadingPanel } from "@/components/LoadingPanel";
-import { SamplePicker } from "@/components/SamplePicker";
 import { HistoryStrip, type HistoryItem } from "@/components/HistoryStrip";
 import { CopyButton } from "@/components/CopyButton";
 import { formatAnalysisReport } from "@/lib/share";
@@ -16,8 +15,10 @@ import {
   removeHistoryEntry,
   savedAtLabel,
   saveAnalysis,
+  setStorageScope,
   type PersistedAnalysis,
 } from "@/lib/persistence";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
 import {
   imageDataToDataURL,
   imageDataToThumbURL,
@@ -27,27 +28,13 @@ import { cap } from "@/lib/utils";
 import { HAIR_COLOR_LABEL, hairTextureLabel } from "@/lib/hair";
 import { ScanFace, Sparkles } from "lucide-react";
 
-const SAMPLES = [
-  {
-    id: "sample-1",
-    src: "/test-faces/IMG_5735.jpg",
-    label: "Sample photo 1",
-    hint: "Soft daylight, front-facing",
-  },
-  {
-    id: "sample-2",
-    src: "/test-faces/IMG_6399.jpg",
-    label: "Sample photo 2",
-    hint: "Brighter outdoor light",
-  },
-];
-
 export default function AnalyzePage() {
   const [image, setImage] = useState<ImageData | null>(null);
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [restored, setRestored] = useState<PersistedAnalysis | null>(null);
   const [history, setHistory] = useState<PersistedAnalysis[]>([]);
+  const [scopeReady, setScopeReady] = useState(false);
   const { report, landmarks, bundle, loading, error } = useAnalyze(
     image,
     restored,
@@ -57,8 +44,29 @@ export default function AnalyzePage() {
     setHistory(loadHistory("analyze") as PersistedAnalysis[]);
   }, []);
 
+  // Resolve the signed-in user before touching persisted history so each
+  // account only ever sees its own photos in the history strip.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isSupabaseConfigured()) {
+        setScopeReady(true);
+        return;
+      }
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      if (cancelled) return;
+      setStorageScope(data.user?.id ?? null);
+      setScopeReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Restore the latest analysis from a previous session, if any.
   useEffect(() => {
+    if (!scopeReady) return;
     const saved = loadLatest("analyze");
     if (saved) {
       setRestored(saved);
@@ -70,11 +78,11 @@ export default function AnalyzePage() {
         });
     }
     refreshHistory();
-  }, [refreshHistory]);
+  }, [scopeReady, refreshHistory]);
 
   // Persist the freshest analysis to the front of the history.
   useEffect(() => {
-    if (!report || !image) return;
+    if (!report || !image || !scopeReady) return;
     saveAnalysis("analyze", {
       report,
       landmarks,
@@ -82,7 +90,7 @@ export default function AnalyzePage() {
       thumb: imageDataToThumbURL(image),
     });
     refreshHistory();
-  }, [report, landmarks, image, refreshHistory]);
+  }, [report, landmarks, image, scopeReady, refreshHistory]);
 
   const handleRestore = useCallback((entry: PersistedAnalysis) => {
     setImage(null);
@@ -169,17 +177,6 @@ export default function AnalyzePage() {
             }}
             resetSignal={resetKey}
           />
-          {!image && !restored && (
-            <SamplePicker
-              samples={SAMPLES}
-              slotLabel="Analyze this"
-              onSample={(data, img) => {
-                setImage(data);
-                setImgEl(img);
-                setRestored(null);
-              }}
-            />
-          )}
           {(image || restored) && (
             <button
               type="button"
