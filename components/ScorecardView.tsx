@@ -86,7 +86,7 @@ export function ScorecardView({
             )}
             <div className="grid h-24 w-24 place-items-center rounded-2xl border border-white/10 bg-white/5">
               <div className="text-center">
-                <div className="text-3xl font-semibold tracking-tight">
+                <div className="score-value text-3xl text-white">
                   {report.overall.toFixed(1)}
                 </div>
                 <div className="text-xs text-white/50">/10</div>
@@ -144,7 +144,7 @@ function BucketCard({
           <h3 className="text-sm font-semibold">{title}</h3>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold">{bucket.score.toFixed(1)}</div>
+          <div className="score-value text-2xl text-white">{bucket.score.toFixed(1)}</div>
           <div className="text-[10px] uppercase tracking-wider text-white/40">
             {bucket.band}
           </div>

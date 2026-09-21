@@ -69,7 +69,7 @@ export function CopyButton({ text, label = "Copy", className }: CopyButtonProps)
       onClick={copy}
       aria-live="polite"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.03] px-2.5 py-1.5 text-xs font-medium text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white",
+        "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs font-medium text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white",
         copied && "border-emerald-400/30 bg-emerald-500/10 text-emerald-200",
         className,
       )}

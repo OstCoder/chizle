@@ -46,51 +46,125 @@ function hubKey(userId: string, key: string): string {
   return `${PREFIX}${userId}:${key}`;
 }
 
-export function hubGet<T>(userId: string, key: string, fallback: T): T {
+/**
+ * Read a JSON value from scoped storage. When `validate` is provided, a value
+ * that fails it (corrupted JSON, a shape from an older/newer schema version,
+ * or hand-edited storage) is discarded and the fallback is returned instead
+ * of propagating data that could crash downstream render code.
+ */
+export function hubGet<T>(
+  userId: string,
+  key: string,
+  fallback: T,
+  validate?: (value: unknown) => boolean,
+): T {
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(hubKey(userId, key));
     if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw);
+    if (validate && !validate(parsed)) {
+      console.warn(`[chizle] discarding malformed hub value for "${key}"`);
+      return fallback;
+    }
+    return parsed as T;
   } catch {
     return fallback;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared shape validators for the structured hub values. Guards against
+// corrupted or schema-drifted storage crashing the dashboard — every one of
+// these used to be an unchecked cast that could throw at render time.
+// ---------------------------------------------------------------------------
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+
+export function isLogsShape(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    typeof v.workout === "boolean" &&
+    (v.sleep === null || typeof v.sleep === "string") &&
+    typeof v.cleanEating === "boolean"
+  );
+}
+
+export function isAmpmShape(v: unknown): boolean {
+  return isObj(v) && typeof v.am === "boolean" && typeof v.pm === "boolean";
+}
+
+export function isFaceFitnessDayShape(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    Array.isArray(v.completed) &&
+    v.completed.every((x) => typeof x === "string")
+  );
+}
+
+export function isGroomingProductArray(v: unknown): boolean {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (p) =>
+        isObj(p) && typeof p.id === "string" && typeof p.name === "string",
+    )
+  );
+}
+
+export function isScentArray(v: unknown): boolean {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (s) =>
+        isObj(s) && typeof s.id === "string" && typeof s.name === "string",
+    )
+  );
+}
+
+export function isScentOfDayShape(v: unknown): boolean {
+  return isObj(v) && typeof v.occasion === "string";
+}
+
+export function isWaterGoalShape(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    (v.mode === "auto" || v.mode === "manual") &&
+    (v.value === null || typeof v.value === "number")
+  );
+}
+
+export function isHairStatusShape(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    (v.lastTrim === null || typeof v.lastTrim === "string") &&
+    (v.nextAppointment === null || typeof v.nextAppointment === "string") &&
+    (v.status === "maintaining" ||
+      v.status === "growing" ||
+      v.status === "beard") &&
+    typeof v.note === "string"
+  );
+}
+
+export function isNumberValue(v: unknown): boolean {
+  return typeof v === "number" && Number.isFinite(v);
 }
 
 export function hubSet(userId: string, key: string, value: unknown): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(hubKey(userId, key), JSON.stringify(value));
-    // Broadcast to same-tab subscribers (the native `storage` event only
-    // fires across tabs), so sibling cards re-read shared state instantly —
-    // e.g. adding a scent to the wardrobe updates Scent of the Day.
-    window.dispatchEvent(new CustomEvent(HUB_EVENT, { detail: { userId, key } }));
+    // Notify other live components (e.g. the header streak badge) on this page
+    // that hub data changed, so they can re-read without a reload.
+    window.dispatchEvent(new CustomEvent(HUB_UPDATED_EVENT));
   } catch {
     /* ignore quota / privacy-mode failures */
   }
 }
 
-const HUB_EVENT = "chizle:hub";
-
-/**
- * Subscribe to same-tab hub writes. `keyFilter` optionally scopes the
- * callback to a single storage key. Returns an unsubscribe function.
- */
-export function subscribeHub(
-  userId: string,
-  keyFilter: string | null,
-  onChange: () => void,
-): () => void {
-  if (typeof window === "undefined") return () => {};
-  const handler = (event: Event) => {
-    const detail = (event as CustomEvent<{ userId: string; key: string }>).detail;
-    if (!detail || detail.userId !== userId) return;
-    if (keyFilter && detail.key !== keyFilter) return;
-    onChange();
-  };
-  window.addEventListener(HUB_EVENT, handler);
-  return () => window.removeEventListener(HUB_EVENT, handler);
-}
+/** Fired on window whenever any hub value is written. */
+export const HUB_UPDATED_EVENT = "chizle:hub-updated";
 
 // ---------------------------------------------------------------------------
 // Day-keyed id sets (checklists: sculpt items, applied products)
@@ -147,7 +221,12 @@ export function consecutiveDays(
   let streak = 0;
   const d = new Date();
   for (let i = 0; i < 400; i++) {
-    const logs = hubGet<DailyLogs>(userId, `${key}:${dateKey(d)}`, EMPTY_LOGS);
+    const logs = hubGet<DailyLogs>(
+      userId,
+      `${key}:${dateKey(d)}`,
+      EMPTY_LOGS,
+      isLogsShape,
+    );
     if (!predicate(logs)) break;
     streak++;
     d.setDate(d.getDate() - 1);

@@ -1,8 +1,7 @@
-// Training domain: a personalized plan with gym and at-home variants, weekly
-// set goals (recommended vs manual), and per-day set logging. Persistence is
-// per account in localStorage via lib/hub.
+// Training domain: a personalized plan with gym and at-home variants shown on
+// /habits. Daily workout logging is a simple boolean check-in (lib/hub
+// DailyLogs), so no set/goal persistence lives here anymore.
 
-import { dateKey, hubGet, hubSet, todayKey } from "./hub";
 import type { AnalysisReport } from "@/types/analysis";
 import type { ProfileRow } from "./useHubData";
 
@@ -35,25 +34,6 @@ export interface PlanInputs {
   age: number | null;
   postureWeak: boolean;
 }
-
-export interface TrainingLog {
-  variant: TrainingVariant;
-  day: number; // index into plan.days
-  done: Record<string, number>; // exercise id -> sets completed
-}
-
-export const EMPTY_TRAINING_LOG: TrainingLog = {
-  variant: "gym",
-  day: 0,
-  done: {},
-};
-
-export interface TrainingGoal {
-  mode: "auto" | "manual";
-  value: number | null; // weekly sets when manual
-}
-
-export const EMPTY_TRAINING_GOAL: TrainingGoal = { mode: "auto", value: null };
 
 /** Profile + latest scan -> plan personalization inputs. */
 export function planInputsFrom(
@@ -191,94 +171,8 @@ function homePlan(inputs: PlanInputs): TrainingPlan {
   };
 }
 
-export function buildTrainingPlan(inputs: PlanInputs): Record<TrainingVariant, TrainingPlan> {
+export function buildTrainingPlan(
+  inputs: PlanInputs,
+): Record<TrainingVariant, TrainingPlan> {
   return { gym: gymPlan(inputs), home: homePlan(inputs) };
-}
-
-/** Total planned sets across a plan (the recommended weekly goal). */
-export function weeklySets(plan: TrainingPlan): number {
-  return plan.days.reduce(
-    (sum, d) => sum + d.exercises.reduce((s, e) => s + e.sets, 0),
-    0,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Persistence (per user, localStorage via lib/hub)
-// ---------------------------------------------------------------------------
-
-export function loadTrainingVariant(userId: string): TrainingVariant {
-  const v = hubGet<TrainingVariant>(userId, "training-variant", "gym");
-  return v === "home" ? "home" : "gym";
-}
-
-export function saveTrainingVariant(userId: string, variant: TrainingVariant): void {
-  hubSet(userId, "training-variant", variant);
-}
-
-export function loadTrainingGoal(userId: string): TrainingGoal {
-  return hubGet<TrainingGoal>(userId, "training-goal", EMPTY_TRAINING_GOAL);
-}
-
-export function saveTrainingGoal(userId: string, goal: TrainingGoal): void {
-  hubSet(userId, "training-goal", goal);
-}
-
-export function loadTrainingLog(userId: string, date: string): TrainingLog {
-  return {
-    ...EMPTY_TRAINING_LOG,
-    ...hubGet<Partial<TrainingLog>>(userId, `training:${date}`, {}),
-  };
-}
-
-export function saveTrainingLog(userId: string, date: string, log: TrainingLog): void {
-  hubSet(userId, `training:${date}`, log);
-}
-
-// Fallback schedule used until the user logs their first session:
-// Sun..Sat -> plan day indexes (Mon/Thu Day 1, Tue/Fri Day 2, Wed/Sat Day 3).
-const DAY_MAP = [0, 0, 1, 2, 0, 1, 2];
-
-/**
- * Which plan day (index into plan.days) is scheduled today. Advances through
- * the split after each completed session; ignores today's log so a reload
- * mid-session never skips ahead.
- */
-export function nextTrainingDay(userId: string): number {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  for (let i = 0; i < 30; i++) {
-    const log = loadTrainingLog(userId, dateKey(d));
-    if (log.day >= 0 && Object.values(log.done).some((v) => v > 0)) {
-      return (log.day + 1) % 3;
-    }
-    d.setDate(d.getDate() - 1);
-  }
-  return DAY_MAP[new Date().getDay()];
-}
-
-/** Sets completed in the last 7 days (including today). */
-export function setsThisWeek(userId: string): number {
-  let total = 0;
-  const d = new Date();
-  for (let i = 0; i < 7; i++) {
-    const log = loadTrainingLog(userId, dateKey(d));
-    total += Object.values(log.done).reduce((s, v) => s + v, 0);
-    d.setDate(d.getDate() - 1);
-  }
-  return total;
-}
-
-/** Consecutive days (ending today) with at least one logged set. */
-export function trainingWorkoutStreak(userId: string): number {
-  let streak = 0;
-  const d = new Date();
-  for (let i = 0; i < 400; i++) {
-    const log = loadTrainingLog(userId, dateKey(d));
-    const sets = Object.values(log.done).reduce((s, v) => s + v, 0);
-    if (sets === 0) break;
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
 }

@@ -69,7 +69,7 @@ export function SkinHealthCard({ entries }: SkinHealthCardProps) {
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-sm font-semibold text-white">
+                <span className="score-value text-sm text-white">
                   {metric.value}
                   <span className="ml-0.5 text-xs font-normal text-white/40">
                     /100

@@ -1,17 +1,6 @@
-export const GENDERS = [
-  "Male",
-  "Female",
-  "Non-binary",
-  "Prefer not to say",
-] as const;
-
-export const HAIR_TYPES = [
-  "Straight",
-  "Wavy",
-  "Curly",
-  "Coily",
-  "Thinning",
-] as const;
+// Fast-track onboarding collects just a primary goal and age; the scan itself
+// fills in the rest. Kept as a compact type so the server action and the
+// onboarding wizard share one contract.
 
 export const GOALS = [
   "Improve posture",
@@ -20,31 +9,14 @@ export const GOALS = [
   "Overall grooming",
 ] as const;
 
-export type Gender = (typeof GENDERS)[number];
-export type HairType = (typeof HAIR_TYPES)[number];
 export type Goal = (typeof GOALS)[number];
-export type UnitSystem = "imperial" | "metric";
 
 export interface OnboardingProfile {
-  gender: Gender | "";
+  primaryGoal: Goal | "";
   age: string;
-  unitSystem: UnitSystem;
-  height: string;
-  heightFeet: string;
-  heightInches: string;
-  weight: string;
-  hairType: HairType | "";
-  goals: Goal[];
 }
 
 export const EMPTY_ONBOARDING_PROFILE: OnboardingProfile = {
-  gender: "",
+  primaryGoal: "",
   age: "",
-  unitSystem: "imperial",
-  height: "",
-  heightFeet: "",
-  heightInches: "",
-  weight: "",
-  hairType: "",
-  goals: [],
 };

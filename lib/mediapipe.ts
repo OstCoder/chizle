@@ -61,6 +61,24 @@ export async function getFaceLandmarker(): Promise<FaceLandmarkerType> {
 
 async function loadBundle(): Promise<LandmarkerBundle> {
   // Dynamic import keeps the (~700KB) wrapper out of the initial JS chunk.
+  // Retry the import a couple of times: in dev, a lazy chunk fetch can fail
+  // transiently (proxy blip / server restart mid-session) and a fresh import
+  // attempt succeeds once the server is reachable again.
+  let lastImportErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
+      return await createLandmarker();
+    } catch (err) {
+      lastImportErr = err;
+    }
+  }
+  throw lastImportErr;
+}
+
+async function createLandmarker(): Promise<LandmarkerBundle> {
   const { FaceLandmarker, FilesetResolver } = await import(
     "@mediapipe/tasks-vision"
   );
@@ -76,10 +94,10 @@ async function loadBundle(): Promise<LandmarkerBundle> {
       runningMode: "IMAGE",
       numFaces: 1,
     });
-    return { landmarker, delegate: "GPU" };
-  } catch (gpuErr) {
-    console.warn("[chizle] GPU delegate failed, using CPU.", gpuErr);
-    const landmarker = await FaceLandmarker.createFromOptions(fileset, {
+    return { landmarker, delegate: "GPU" };      } catch (gpuErr) {
+        // GPU/WebGL can fail in sandboxed browsers; CPU handles single-image
+        // analysis fine, so stay quiet and continue.
+        const landmarker = await FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,

@@ -40,7 +40,7 @@ export function HistoryStrip({ items }: { items: HistoryItem[] }) {
             className={`group relative w-40 shrink-0 cursor-pointer overflow-hidden rounded-xl border text-left transition-all ${
               item.active
                 ? "border-accent-500/50 bg-accent-500/[0.06]"
-                : "border-white/5 bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
+                : "border-white/10 bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
             }`}
           >
             <div className="flex h-24 w-full">

@@ -12,7 +12,7 @@ interface PageHeaderProps {
 /** Standalone feature-page header with a back link to the dashboard. */
 export function PageHeader({ eyebrow, title, subtitle }: PageHeaderProps) {
   return (
-    <div className="card animate-fade-up p-6 sm:p-8">
+    <div className="card animate-fade-up p-6">
       <Link
         href="/dashboard"
         className="inline-flex items-center gap-1 text-xs font-medium text-white/40 transition-colors hover:text-white/75"

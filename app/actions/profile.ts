@@ -3,19 +3,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { OnboardingProfile } from "@/lib/supabase/types";
 
-const allowedGenders = new Set([
-  "Male",
-  "Female",
-  "Non-binary",
-  "Prefer not to say",
-]);
-const allowedHairTypes = new Set([
-  "Straight",
-  "Wavy",
-  "Curly",
-  "Coily",
-  "Thinning",
-]);
 const allowedGoals = new Set([
   "Improve posture",
   "Optimize hairstyle",
@@ -34,31 +21,20 @@ export async function saveOnboardingProfile(profile: OnboardingProfile) {
   }
 
   const age = Number(profile.age);
-  const height = Number(profile.height);
-  const weight = Number(profile.weight);
-
-  if (!allowedGenders.has(profile.gender)) throw new Error("Choose a gender.");
+  if (!allowedGoals.has(profile.primaryGoal)) {
+    throw new Error("Choose your primary goal.");
+  }
   if (!Number.isInteger(age) || age < 13 || age > 120) {
     throw new Error("Enter an age between 13 and 120.");
   }
-  if (!Number.isFinite(height) || height <= 0 || !Number.isFinite(weight) || weight <= 0) {
-    throw new Error("Enter valid height and weight values.");
-  }
-  if (!allowedHairTypes.has(profile.hairType)) throw new Error("Choose a hair type.");
-  if (!profile.goals.length || profile.goals.some((goal) => !allowedGoals.has(goal))) {
-    throw new Error("Choose at least one goal.");
-  }
 
+  // The fast-track flow collects only a goal + age. Height/weight/hair stay
+  // null (profile-sized defaults like the water target simply fall back), and
+  // hair texture comes from the scan's hair read when present.
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
-    gender: profile.gender,
     age,
-    height,
-    height_unit: profile.unitSystem,
-    weight,
-    weight_unit: profile.unitSystem,
-    hair_type: profile.hairType,
-    goals: profile.goals,
+    goals: [profile.primaryGoal],
     onboarding_completed: true,
     updated_at: new Date().toISOString(),
   });

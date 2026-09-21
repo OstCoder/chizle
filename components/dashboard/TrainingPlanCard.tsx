@@ -82,7 +82,7 @@ export function TrainingPlanCard({
         ))}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="text-sm font-semibold text-white">{plan.title}</h3>
           <span className="font-mono text-xs text-white/40">
@@ -98,7 +98,7 @@ export function TrainingPlanCard({
         {plan.days.map((day) => (
           <div
             key={day.id}
-            className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+            className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-accent-200">{day.label}</p>

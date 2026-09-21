@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Upload, X } from "lucide-react";
+import { ShieldCheck, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fileToDataURL, imageToImageData, loadImageFromUrl } from "@/lib/imageData";
 
@@ -12,6 +12,8 @@ interface ImageUploaderProps {
   className?: string;
   size?: "default" | "compact";
   resetSignal?: number;
+  /** Increment to programmatically open the file picker (e.g. empty-state CTA). */
+  openSignal?: number;
 }
 
 export function ImageUploader({
@@ -21,6 +23,7 @@ export function ImageUploader({
   className,
   size = "default",
   resetSignal,
+  openSignal,
 }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -66,6 +69,19 @@ export function ImageUploader({
     if (inputRef.current) inputRef.current.value = "";
     onImage(null, null);
   };
+
+  // A parent bumping openSignal (empty-state CTA) opens the file picker.
+  const lastOpenSig = useRef(openSignal);
+  useEffect(() => {
+    if (
+      openSignal !== undefined &&
+      openSignal !== 0 &&
+      openSignal !== lastOpenSig.current
+    ) {
+      lastOpenSig.current = openSignal;
+      inputRef.current?.click();
+    }
+  }, [openSignal]);
 
   return (
     <div
@@ -139,6 +155,26 @@ export function ImageUploader({
       {error && (
         <p className="mt-3 px-3 text-sm text-red-400">{error}</p>
       )}
+      {/* Persistent privacy badge — visible in every uploader state (empty,
+          preview, error) so the on-device guarantee is always in view at the
+          exact moment a user decides to hand over their face. */}
+      <div
+        title="Face mapping, scoring, and history storage all run locally in your browser. No photo is ever uploaded to a server."
+        className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-500/[0.06] px-3 py-2 ring-1 ring-emerald-400/20"
+      >
+        <ShieldCheck
+          className="h-4 w-4 shrink-0 text-emerald-300"
+          aria-hidden="true"
+        />
+        <p className="text-xs leading-tight">
+          <span className="font-semibold text-emerald-200">
+            100% On-Device &amp; Private
+          </span>
+          <span className="text-emerald-200/60">
+            {" "}— your photo never leaves this browser.
+          </span>
+        </p>
+      </div>
       <ResetEffect signal={resetSignal} onTrigger={clear} hasPreview={!!preview} />
     </div>
   );

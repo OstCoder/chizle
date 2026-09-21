@@ -29,7 +29,7 @@ export function analyze(
   const points = (faceLandmarks ?? []) as LandmarkPoint[];
   const hasFace = points.length >= 468;
 
-  const light = computeLightQuality(imageData);
+  const light = computeLightQuality(imageData, points);
   const checks = assessImageQuality(imageData, hasFace);
 
   if (!hasFace) {

@@ -19,7 +19,7 @@ interface GlowCardProps {
 export function GlowCard({ entry }: GlowCardProps) {
   if (!entry) {
     return (
-      <section className="card animate-fade-up p-6 sm:p-8">
+      <section className="card animate-fade-up p-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-300">
           Face analysis
         </p>
@@ -51,7 +51,7 @@ export function GlowCard({ entry }: GlowCardProps) {
   const src = entry.image ?? entry.thumb;
 
   return (
-    <section className="card animate-fade-up p-6 sm:p-7">
+    <section className="card animate-fade-up p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-300">

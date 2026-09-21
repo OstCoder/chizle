@@ -2,40 +2,78 @@
 
 See yourself through clearer eyes.
 
-Chizle is a private face-analysis app. Create a profile, answer a short onboarding quiz, then upload a photo and map your face with MediaPipe FaceMesh (468 landmarks). Chizle scores symmetry, facial ratios, posture, expression, and lighting, then returns practical, non-invasive fixes. Photos stay on the device.
+Chizle is a private face-analysis app. Answer two quick questions, upload a photo, and the AI maps your face with MediaPipe FaceMesh (468 landmarks) — scoring symmetry, facial ratios, posture, expression, and lighting, then handing you a personalized daily routine. Photos stay on the device.
 
 ## Features
 
-- **Self-improvement hub** (`/dashboard`) — the analysis core plus live
-  previews into every practice:
+- **Self-improvement hub** (`/dashboard`) — two focused sections:
   1. **Analysis & Tracking** — latest scan with mapping/symmetry overlays, the
-     Chizle Score ring, and a before-vs-now progress slider.
-  2. **Your toolkit** — preview tiles (with live stats) linking to each
-     dedicated feature page:
-     - `/grooming` — **Hair & Grooming**: a haircut match card that
-       recommends named cuts from the face analysis (face shape × hair
-       texture) and a daily product stack (texture-, thinning-, and
-       beard-aware) that drops straight into the regimen, plus the style &
-       maintenance tracker (days since last trim, appointment countdown,
-       growth goals) and the per-day product regimen.
-     - `/fragrance` — **Fragrance Profile**: scent of the day (by
-       occasion/mood) and a fragrance wardrobe with note breakdowns.
-     - `/habits` — **Sculpt, Train & Recover** (merged Sculpt + Habits): the
-       daily Sculpt List (jawline, face yoga, mewing timers) and complexion
-       metrics with trends, a personalized training plan with gym and
-       at-home variants, per-exercise set logging against a weekly goal
-       (recommended or manual), tap-to-log water tracking against a
-       profile-based target, and recovery check-ins (sleep / clean eating)
-       with streaks.
-  All tracker data is stored per account in the browser (localStorage) and
-  resets naturally each day where applicable.
-- **Account and onboarding** (`/auth`, `/onboarding`) — email/password authentication followed by a three-step profile quiz.
-- **Analyze a photo** (`/analyze`) — shape, symmetry, thirds balance, jawline,
-  posture, expression, lighting, and prioritized weakspots with actionable fixes.
-- **Then vs Now** (`/compare`) — compare two photos and see what measurably
-  changed, including your dating-profile score movement.
-- **Dating profile scorecard** (`/scorecard`) — a 1–10 across approachability,
-  photo quality, and style, with a verdict (primary / secondary / fix / reframe).
+     Chizle Score ring, and an interactive "Before vs. Now" split-screen
+     slider: pick any two scans from your history and drag a divider to wipe
+     between the photos, with the metric deltas recomputing for that pair.
+  2. **Daily Routine Checklist** — one consolidated widget covering the
+     Sculpt List, daily workout, water goal, grooming products, and scent of
+     the day. One tap per row; the detailed tracking lives one tap away.
+- **Analyze** (`/analyze`) — the core flow: drop a front-facing photo and get
+  a quick read (shape, photo quality) plus prioritized weakspots with
+  actionable fixes. Individual symmetry scores and the detailed posture
+  breakdown sit behind a collapsible "View detailed analysis" panel. A
+  **rating panel** shows the overall score with a potential score (current →
+  potential on a /10 scale), feature-by-feature breakdowns (skin quality with
+  flagged issues, hair & style match, facial structure & symmetry), and a
+  "How to reach your potential" action plan that links low-scoring areas to a
+  prioritized checklist with estimated score improvements per habit. A
+  **Glow-Up Progress Tracker** plots every saved scan on an interactive line
+  chart (symmetry, jawline sharpness, skin clarity) with toggleable series and
+  hover inspection. **Export Full Report** compiles the latest scan into a
+  clean, downloadable one-page PDF — overall + potential score, feature
+  breakdowns, detected attributes, the prioritized action plan with estimated
+  gains, and the personalized daily routine as a printable checklist.
+- **Grooming** (`/grooming`) — a haircut match card that recommends named cuts
+  from the face analysis (face shape × hair texture) and a daily product
+  stack (texture-, thinning-, and beard-aware) that drops straight into the
+  regimen, plus the style & maintenance tracker, the per-day product regimen,
+  and the daily scent log (occasion/mood). Recommended products and regimen
+  items include direct purchase links. An **Ingredient Safety & Synergy**
+  card reads skin flags from the latest scan (localized redness, breakout
+  texture, dehydration, shine, dullness, tired eyes — via a face-region
+  redness proxy added to the pipeline) and maps them to ingredients to look
+  for (niacinamide, azelaic acid, salicylic acid, ceramides, caffeine, …),
+  ingredients to go easy on, and a synergy read that surfaces power pairs
+  and conflicts (retinol × BHA, retinol × BPO, vitamin C × BPO) with AM/PM
+  scheduling fixes.
+- **Habits** (`/habits`) — the daily Sculpt List (jawline, face yoga, mewing
+  timers), complexion metrics with trends, smart skincare picks matched to
+  the latest scan (each with a direct purchase link), an AM/PM skincare log
+  (morning + evening routine toggles), a personalized training
+  plan with gym and at-home variants, tap-to-log water tracking against a
+  profile-based target, and a 30-second daily check-in (workout / clean
+  eating / sleep).
+- **Glow-up streak** (header, all pages) — a flame badge counting consecutive
+  complete days. A day is complete when AM + PM skincare are both logged,
+  plus grooming (all regimen products applied) and the workout once the user
+  has started tracking those. The popover shows today's four pillars with
+  one-tap AM/PM logging, the milestone reached (e.g. "7-Day Glow-Up
+  Streak!"), and a progress bar toward the next milestone (3, 5, 7, 14, 21,
+  30, 60, 100 days). It live-updates as checklists are completed anywhere in
+  the app; the AM/PM rows also sit in the dashboard's Daily Routine
+  Checklist.
+- **Account and onboarding** (`/auth`, `/onboarding`) — email/password
+  authentication followed by a two-question setup (primary goal + age) and an
+  immediate scan CTA, so the first result lands within seconds.
+- **Extras** — **Then vs Now** (`/compare`) compares two photos and shows what
+  measurably changed; **Scorecard** (`/scorecard`) rates a photo 1–10 with a
+  verdict. Both sit outside the main three-item navigation.
+
+**Smart product recommendations** — skincare picks on `/habits` and haircare
+products on `/grooming` are matched to the user's scan metrics (complexion
+proxies, weakspots, face shape, hair texture) and onboarding goals, each with
+a direct Amazon search "Buy" link. Set `NEXT_PUBLIC_AMAZON_AFFILIATE_TAG`
+(public env var) to attribute those links with an Amazon Associates tag;
+without it the links stay plain search results.
+
+All tracker data is stored per account in the browser (localStorage) and
+resets naturally each day where applicable.
 
 Everything runs in the browser via MediaPipe (vendored under
 `/public/mediapipe/`). Images never leave the device, and analysis history is
@@ -89,7 +127,7 @@ app/          Next.js routes and server actions
   onboarding/ Three-step profile quiz
   actions/    Authenticated profile persistence
 components/   UI: uploaders, views, mesh overlay, weakspot cards, site shell
-lib/          Analysis pipeline and Supabase clients/types
+lib/          Analysis pipeline (incl. reportPdf one-page PDF composer) and Supabase clients/types
   mediapipe.ts    Lazy FaceLandmarker loader (GPU -> CPU fallback)
   analysis.ts     Aggregates ratios/symmetry/posture/expression/light
   ratios.ts       Face ratios + 3D depth metrics (chin/midface projection)

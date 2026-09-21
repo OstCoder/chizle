@@ -4,27 +4,26 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LogIn, LogOut, Menu, ScanFace, X } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import { StreakBadge } from "@/components/StreakBadge";
+import { WidgetErrorBoundary } from "@/components/ErrorBoundary";
+import type { User } from "@supabase/supabase-js";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/grooming", label: "Grooming" },
-  { href: "/fragrance", label: "Fragrance" },
-  { href: "/habits", label: "Habits" },
   { href: "/analyze", label: "Analyze" },
-  { href: "/compare", label: "Then vs Now" },
-  { href: "/scorecard", label: "Scorecard" },
+  { href: "/grooming", label: "Grooming" },
+  { href: "/habits", label: "Habits" },
 ];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setSignedIn(Boolean(data.user)));
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(Boolean(session?.user));
+      setUser(session?.user ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -32,14 +31,14 @@ export function SiteHeader() {
   async function signOut() {
     if (!isSupabaseConfigured()) return;
     await createClient().auth.signOut();
-    setSignedIn(false);
+    setUser(null);
     setOpen(false);
     window.location.assign("/");
   }
 
   return (
-    <header className="sticky top-0 z-30 glass border-b border-white/5">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-30 glass border-b border-white/10">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-4">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent-500/15 text-accent-400">
             <ScanFace className="h-5 w-5" />
@@ -47,13 +46,18 @@ export function SiteHeader() {
           <span className="text-base font-semibold tracking-tight">Chizle</span>
         </Link>
 
-        <nav className="hidden items-center gap-0.5 text-[13px] lg:flex">
+        <nav className="hidden items-center gap-0.5 text-[13px] md:flex">
           {NAV.map((item) => (
             <Link key={item.href} href={item.href} className="btn-ghost">
               {item.label}
             </Link>
           ))}
-          {signedIn ? (
+          {user && (
+            <WidgetErrorBoundary label="Streak badge">
+              <StreakBadge userId={user.id} />
+            </WidgetErrorBoundary>
+          )}
+          {user ? (
             <button type="button" onClick={signOut} className="btn-ghost" title="Sign out">
               <LogOut className="h-4 w-4" />
               Sign out
@@ -66,20 +70,35 @@ export function SiteHeader() {
           )}
         </nav>
 
-        <button type="button" onClick={() => setOpen((value) => !value)} className="grid h-9 w-9 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/5 hover:text-white md:hidden" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-nav">
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile: streak badge + hamburger */}
+        <div className="flex items-center gap-2 md:hidden">
+          {user && (
+            <WidgetErrorBoundary label="Streak badge">
+              <StreakBadge userId={user.id} />
+            </WidgetErrorBoundary>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="grid h-9 w-9 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            aria-controls="mobile-nav"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {open && (
-        <nav id="mobile-nav" className="border-t border-white/5 px-4 pb-4 pt-2 md:hidden">
+        <nav id="mobile-nav" className="border-t border-white/10 px-4 pb-4 pt-2 md:hidden">
           <div className="flex flex-col gap-1">
             {NAV.map((item) => (
               <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm text-white/75 transition-colors hover:bg-white/5 hover:text-white">
                 {item.label}
               </Link>
             ))}
-            {signedIn ? (
+            {user ? (
               <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-white/75 transition-colors hover:bg-white/5 hover:text-white">
                 <LogOut className="h-4 w-4" />
                 Sign out

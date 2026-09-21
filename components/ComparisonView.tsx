@@ -188,7 +188,7 @@ function PhotoCard({
 }) {
   return (
     <div className="card overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-2 border-b border-white/5 px-4 py-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
         <span
           className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${
             accent ? "text-accent-300" : "text-white/50"
@@ -227,7 +227,7 @@ function ScorePill({
   tone: string;
 }) {
   return (
-    <div className="flex items-baseline gap-2 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-2.5">
+    <div className="flex items-baseline gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
       <span className="text-[11px] uppercase tracking-wider text-white/40">
         {label}
       </span>
@@ -256,7 +256,7 @@ function BucketDelta({
       : "text-white/40";
   const Arrow = positive ? ArrowUp : negative ? ArrowDown : Minus;
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-2.5">
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
       <div className="text-xs text-white/50">{label}</div>
       <div className="mt-1 flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium text-white/90">
@@ -332,7 +332,7 @@ function DeltaRow({
       : "text-white/40";
   const Arrow = positive ? ArrowUp : negative ? ArrowDown : Minus;
   return (
-    <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-2.5">
+    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
       <div>
         <div className="text-xs text-white/50">{label}</div>
         <div className="mt-0.5 text-sm">

@@ -1,11 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { ImageUploader } from "@/components/ImageUploader";
-import { ScorecardView } from "@/components/ScorecardView";
-import { AngleGuard } from "@/components/AngleGuard";
 import { LoadingPanel } from "@/components/LoadingPanel";
 import { HistoryStrip, type HistoryItem } from "@/components/HistoryStrip";
+import { PanelSkeleton } from "@/components/PanelSkeleton";
 import { formatScorecardReport } from "@/lib/share";
 import { useAnalyze } from "@/lib/useAnalyze";
 import {
@@ -28,6 +28,16 @@ import { cap } from "@/lib/utils";
 import { scorecard } from "@/lib/scorecard";
 import type { ScorecardMode } from "@/types/analysis";
 import { Smartphone, Sparkles, Users } from "lucide-react";
+
+// The verdict view only renders once a photo has been analyzed — keep its
+// chunk out of the initial route bundle.
+const ScorecardView = dynamic(
+  () => import("@/components/ScorecardView").then((m) => m.ScorecardView),
+  {
+    loading: () => <PanelSkeleton label="Scoring your photo…" />,
+    ssr: false,
+  },
+);
 
 const MODE_STORAGE_KEY = "chizle:v2:scorecard-mode";
 
@@ -60,12 +70,6 @@ export default function ScorecardPage() {
     image,
     restored,
   );
-
-  // Side / profile photos get the angle guard here too (and are never
-  // scored — see lib/scorecard + the persist effect below).
-  const sideAngle =
-    report !== null &&
-    (report.sideAngle === true || report.angle === "profile");
   const card = report ? scorecard(report, mode) : null;
 
   // Apply the persisted mode after hydration (avoids SSR/client mismatch),
@@ -123,10 +127,8 @@ export default function ScorecardPage() {
   }, [scopeReady, refreshHistory]);
 
   // Persist the freshest scorecard analysis to the front of the history.
-  // Rejected (side-angle) scans are not results — don't persist them.
   useEffect(() => {
     if (!report || !image || !scopeReady) return;
-    if (report.sideAngle === true || report.angle === "profile") return;
     saveAnalysis("scorecard", {
       report,
       landmarks,
@@ -299,8 +301,7 @@ export default function ScorecardPage() {
           {error && (
             <div className="card p-5 text-sm text-red-300">{error}</div>
           )}
-          {report && sideAngle && <AngleGuard />}
-          {report && card && !sideAngle && (
+          {report && card && (
             <div className="card p-5">
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-white/70">
@@ -320,7 +321,7 @@ export default function ScorecardPage() {
         </div>
       </div>
 
-      {card && !sideAngle && (
+      {card && (
         <div className="pt-2">
           <ScorecardView
             report={card}

@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from "next/server";
 const protectedPaths = [
   "/dashboard",
   "/grooming",
-  "/fragrance",
   "/habits",
   "/analyze",
   "/compare",
@@ -82,7 +81,6 @@ export const config = {
     "/onboarding",
     "/dashboard",
     "/grooming/:path*",
-    "/fragrance/:path*",
     "/habits/:path*",
     "/analyze/:path*",
     "/compare/:path*",

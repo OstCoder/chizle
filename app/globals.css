@@ -26,26 +26,26 @@ body {
 }
 
 * {
-  border-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .glass {
   background: rgba(20, 22, 30, 0.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all active:scale-[0.97];
 }
 
 .btn-primary {
-  @apply btn bg-accent-500 text-white hover:bg-accent-600 shadow-[0_8px_30px_-8px_rgba(249,115,22,0.5)] hover:shadow-[0_10px_40px_-8px_rgba(249,115,22,0.6)];
+  @apply btn bg-accent-500 text-white hover:bg-accent-600 shadow-[0_8px_30px_-8px_rgba(249,115,22,0.5)] hover:shadow-[0_10px_40px_-8px_rgba(249,115,22,0.6)] hover:-translate-y-px;
 }
 
 .btn-secondary {
-  @apply btn bg-ink-700 text-white/90 hover:bg-ink-600 border border-white/5;
+  @apply btn bg-ink-700 text-white/90 hover:bg-ink-600 border border-white/5 hover:-translate-y-px;
 }
 
 .btn-ghost {
@@ -54,6 +54,44 @@ body {
 
 .card {
   @apply glass rounded-2xl;
+}
+
+/* Score typography hierarchy — every score badge (Chizle Score, ratings,
+   streaks, deltas) renders its numerals in the mono stack with tabular
+   figures so digits never shift layout as they update. Pair with .score-label
+   for the eyebrow above it. */
+.score-value {
+  @apply font-mono font-semibold tabular-nums tracking-tight;
+}
+
+.score-label {
+  @apply text-[11px] font-medium uppercase tracking-[0.18em] text-white/45;
+}
+
+/* Interactive card surfaces (dashboard widgets): subtle lift on hover.
+   Widget cards are <section class="card"> — inner/div cards stay still. */
+section.card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+section.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(249, 115, 22, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  section.card,
+  section.card:hover {
+    transition: none;
+    transform: none;
+  }
+
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    transition-property: color, background-color, border-color, box-shadow;
+    transform: none;
+  }
 }
 
 .chip {

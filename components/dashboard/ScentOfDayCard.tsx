@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Sparkle } from "lucide-react";
+import { Check, Sparkle, X } from "lucide-react";
 import {
   hubGet,
   hubSet,
-  subscribeHub,
+  isScentArray,
+  isScentOfDayShape,
+  makeId,
   todayKey,
   type Scent,
   type ScentOfDay,
@@ -33,29 +35,55 @@ const OCCASION_TONE: Record<string, string> = {
   Everyday: "border-white/10 bg-white/[0.03] text-white/50",
 };
 
-/** Log today's fragrance + occasion. Reads the wardrobe to offer choices. */
+/**
+ * Compact daily fragrance log, folded into /grooming. Free-text wardrobe
+ * (your saved scents) plus an occasion pick — two taps, no separate page.
+ */
 export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
   const dateKey = todayKey();
   const [scents, setScents] = useState<Scent[]>([]);
-  const [pick, setPick] = useState<ScentOfDay>({ scentId: null, occasion: "Everyday" });
+  const [pick, setPick] = useState<ScentOfDay>({
+    scentId: null,
+    occasion: "Everyday",
+  });
+  const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setScents(hubGet<Scent[]>(userId, "scents", []));
+    setScents(hubGet<Scent[]>(userId, "scents", [], isScentArray));
     setPick(
-      hubGet<ScentOfDay>(userId, `scent:${dateKey}`, {
-        scentId: null,
-        occasion: "Everyday",
-      }),
+      hubGet<ScentOfDay>(
+        userId,
+        `scent:${dateKey}`,
+        { scentId: null, occasion: "Everyday" },
+        isScentOfDayShape,
+      ),
     );
-    // Re-read the wardrobe whenever it changes so a scent added in the
-    // Fragrance Wardrobe card is selectable immediately.
-    return subscribeHub(userId, "scents", () => {
-      setScents(hubGet<Scent[]>(userId, "scents", []));
-    });
   }, [userId, dateKey]);
 
   const currentScent = scents.find((s) => s.id === pick.scentId) ?? null;
+
+  const addScent = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const scent: Scent = { id: makeId(), name: trimmed, notes: [] };
+    const next = [...scents, scent];
+    setScents(next);
+    hubSet(userId, "scents", next);
+    setPick((p) => ({ ...p, scentId: scent.id }));
+    setName("");
+  };
+
+  const removeScent = (id: string) => {
+    const next = scents.filter((s) => s.id !== id);
+    setScents(next);
+    hubSet(userId, "scents", next);
+    if (pick.scentId === id) {
+      const updated = { ...pick, scentId: null };
+      setPick(updated);
+      hubSet(userId, `scent:${dateKey}`, updated);
+    }
+  };
 
   const save = () => {
     hubSet(userId, `scent:${dateKey}`, pick);
@@ -68,7 +96,7 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-300">
-            Fragrance profile
+            Fragrance
           </p>
           <h2 className="mt-1 text-lg font-semibold text-white">
             Scent of the day
@@ -87,27 +115,19 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
           <p className="mt-1 text-lg font-semibold text-white">
             {currentScent.name}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span
-              className={`chip ring-1 ${OCCASION_TONE[pick.occasion] ?? OCCASION_TONE.Everyday}`}
-            >
-              {pick.occasion}
-            </span>
-            {currentScent.notes.map((n) => (
-              <span
-                key={n}
-                className="chip border-white/10 bg-white/[0.03] text-white/55"
-              >
-                {n}
-              </span>
-            ))}
-          </div>
+          <span
+            className={`chip mt-2 ring-1 ${OCCASION_TONE[pick.occasion] ?? OCCASION_TONE.Everyday}`}
+          >
+            {pick.occasion}
+          </span>
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center">
-          <p className="text-sm font-medium text-white/80">No scent logged yet today</p>
+          <p className="text-sm font-medium text-white/80">
+            No scent logged yet today
+          </p>
           <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-white/45">
-            Pick from your wardrobe and match the occasion — it takes two taps.
+            Pick from your list below — it takes two taps.
           </p>
         </div>
       )}
@@ -133,6 +153,51 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
             ))}
           </select>
         </label>
+
+        {scents.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5">
+            {scents.map((s) => (
+              <li key={s.id}>
+                <span className="chip border-white/10 bg-white/[0.03] text-white/55">
+                  {s.name}
+                  <button
+                    type="button"
+                    onClick={() => removeScent(s.id)}
+                    aria-label={`Remove ${s.name}`}
+                    className="ml-1 text-white/30 transition-colors hover:text-white"
+                  >
+                    <X className="inline h-3 w-3" />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addScent();
+              }
+            }}
+            placeholder="Add a scent to your list…"
+            className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition focus:border-accent-400/60 placeholder:text-white/30"
+          />
+          <button
+            type="button"
+            onClick={addScent}
+            disabled={!name.trim()}
+            className="btn-secondary shrink-0 !px-3 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Add
+          </button>
+        </div>
+
         <label className="block text-xs font-medium text-white/60">
           Occasion / mood
           <select
@@ -149,6 +214,7 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
             ))}
           </select>
         </label>
+
         <button
           type="button"
           onClick={save}
@@ -165,11 +231,6 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
             </>
           )}
         </button>
-        {scents.length === 0 && (
-          <p className="text-center text-xs text-white/40">
-            Your wardrobe is empty — add scents in the Fragrance Wardrobe card.
-          </p>
-        )}
       </div>
     </section>
   );

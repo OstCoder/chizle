@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Check, Plus, ScanFace, Scissors, Sparkles } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  Plus,
+  ScanFace,
+  Scissors,
+  Sparkles,
+} from "lucide-react";
+import { MiniNudge } from "@/components/EmptyState";
 import {
   haircareMatches,
   type ProductRec,
 } from "@/lib/haircare";
+import { affiliateLink } from "@/lib/picks";
 import {
   EMPTY_HAIR_STATUS,
   hubGet,
   hubSet,
+  isGroomingProductArray,
+  isHairStatusShape,
   makeId,
   type GroomingProduct,
   type HairStatus,
@@ -38,13 +48,20 @@ export function HaircutMatchCard({
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setHaircare(hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS));
+    setHaircare(
+      hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, isHairStatusShape),
+    );
   }, [userId]);
 
   const match = haircareMatches(report, profile, haircare);
 
   const addToRegimen = (p: ProductRec) => {
-    const current = hubGet<GroomingProduct[]>(userId, "products", []);
+    const current = hubGet<GroomingProduct[]>(
+      userId,
+      "products",
+      [],
+      isGroomingProductArray,
+    );
     if (!current.some((x) => x.name.toLowerCase() === p.name.toLowerCase())) {
       const next: GroomingProduct[] = [
         ...current,
@@ -101,19 +118,14 @@ export function HaircutMatchCard({
 
       {/* Scan nudge when there is no face read yet */}
       {!match.shape && (
-        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3.5">
-          <ScanFace className="h-4 w-4 shrink-0 text-white/40" />
-          <p className="text-xs leading-relaxed text-white/55">
-            Scan a front-facing photo to unlock cuts matched to your actual
-            face shape and hair.
-          </p>
-          <Link
-            href="/analyze"
-            className="btn-secondary shrink-0 !px-3 !py-1.5 text-xs"
-          >
-            Scan now
-          </Link>
-        </div>
+        <MiniNudge
+          className="mt-4"
+          icon={<ScanFace className="h-4 w-4" />}
+          title="Unlock your matched cuts"
+          body="Scan a front-facing photo and this card matches cuts to your actual face shape and hair."
+          ctaLabel="Scan now"
+          ctaHref="/analyze"
+        />
       )}
 
       {/* Recommended cuts */}
@@ -127,7 +139,7 @@ export function HaircutMatchCard({
             {match.cuts.map((cut, i) => (
               <li
                 key={cut.id}
-                className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-3.5 py-3"
+                className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-3.5 py-3"
               >
                 <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent-500/15 font-mono text-[10px] font-semibold text-accent-300">
                   {i + 1}
@@ -157,7 +169,7 @@ export function HaircutMatchCard({
               return (
                 <li
                   key={p.id}
-                  className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-3.5 py-2.5"
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-3.5 py-2.5"
                 >
                   <span className="chip shrink-0 ring-1 border-white/10 bg-white/[0.03] text-white/50">
                     {p.category}
@@ -170,6 +182,16 @@ export function HaircutMatchCard({
                       {p.note}
                     </p>
                   </div>
+                  <a
+                    href={affiliateLink(p.name)}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow sponsored"
+                    className="shrink-0 rounded-lg bg-white/[0.05] px-2.5 py-1.5 text-xs font-medium text-white/70 ring-1 ring-white/10 transition-colors hover:bg-accent-500/15 hover:text-accent-200"
+                    aria-label={`Buy ${p.name} on Amazon`}
+                  >
+                    <ExternalLink className="mr-1 inline h-3 w-3" />
+                    Buy
+                  </a>
                   <button
                     type="button"
                     onClick={() => addToRegimen(p)}

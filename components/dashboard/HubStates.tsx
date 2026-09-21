@@ -2,7 +2,7 @@
 export function HubLoading() {
   return (
     <div className="space-y-6">
-      <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-6">
+      <div className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-6">
         <div className="space-y-6">
           <div className="h-32 animate-pulse rounded-3xl bg-white/[0.04]" />
           <div className="h-72 animate-pulse rounded-3xl bg-white/[0.04]" />

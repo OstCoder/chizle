@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AppMotionConfig } from "@/components/motion";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,11 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen font-sans">
-        <SiteHeader />
-        <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
-        <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-10 text-sm text-white/40">
-          <p>Chizle runs entirely in your browser. Your photos never leave your device.</p>
-        </footer>
+        <AppMotionConfig>
+          <SiteHeader />
+          <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+          <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-10 text-sm text-white/40">
+            <p>Chizle runs entirely in your browser. Your photos never leave your device.</p>
+          </footer>
+        </AppMotionConfig>
       </body>
     </html>
   );

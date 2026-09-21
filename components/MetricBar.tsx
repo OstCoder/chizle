@@ -28,7 +28,7 @@ export function MetricBar({
     <div className={cn("space-y-1.5", className)}>
       <div className="flex items-baseline justify-between gap-2 text-sm">
         <span className="text-white/70">{label}</span>
-        <span className="font-mono text-xs text-white/50">
+        <span className="score-value text-xs text-white/50">
           {Math.round(pct)}{detail ? ` · ${detail}` : ""}
         </span>
       </div>

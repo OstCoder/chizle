@@ -173,6 +173,16 @@ export interface LightQualityReport {
   contrast: number; // 0..1
   evenness: number; // 0..1 (1 = even lighting)
   sharpness: number; // 0..1 proxy
+  /**
+   * 0..1 localized-redness proxy, sampled inside the face bounding box: how
+   * much the reddest skin patches exceed the face's own median red excess
+   * (red minus green+blue average, normalized by total intensity). Measuring
+   * dispersion WITHIN the face cancels skin tone and overall lighting color,
+   * so higher values point at localized flushing, irritation, or breakout
+   * patches rather than complexion. A camera-based read, not a diagnosis.
+   * Optional for legacy persisted reports.
+   */
+  redness?: number;
 }
 
 export interface Weakspot {

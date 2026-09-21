@@ -1,11 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { ImageUploader } from "@/components/ImageUploader";
-import { ComparisonView } from "@/components/ComparisonView";
 import { LoadingPanel } from "@/components/LoadingPanel";
 import { HistoryStrip, type HistoryItem } from "@/components/HistoryStrip";
 import { CopyButton } from "@/components/CopyButton";
+import { PanelSkeleton } from "@/components/PanelSkeleton";
 import { formatComparisonReport } from "@/lib/share";
 import { useAnalyze } from "@/lib/useAnalyze";
 import { compareImages } from "@/lib/comparison";
@@ -28,6 +29,16 @@ import {
 } from "@/lib/imageData";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
 import { GitCompareArrows } from "lucide-react";
+
+// The delta view only renders once both photos have been analyzed — keep it
+// out of the initial route bundle.
+const ComparisonView = dynamic(
+  () => import("@/components/ComparisonView").then((m) => m.ComparisonView),
+  {
+    loading: () => <PanelSkeleton label="Comparing your scans…" />,
+    ssr: false,
+  },
+);
 
 export default function ComparePage() {
   const [a, setA] = useState<ImageData | null>(null);

@@ -34,7 +34,9 @@ export interface PersistedCompareEntry {
 export type PersistSlot = "analyze" | "scorecard" | "compare";
 
 const PREFIX = "chizle:v2:";
-const MAX_HISTORY = 5;
+// 12 entries gives the progress tracker a real trend line while staying well
+// inside the localStorage quota (only the newest entry keeps a full image).
+const MAX_HISTORY = 12;
 
 // Namespaces persisted history to the signed-in user so a shared browser
 // never surfaces one account's photos in another account's history strip.
@@ -76,6 +78,99 @@ function readJson<T>(key: string): T | null {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Schema validation & versioning. localStorage survives app upgrades, so a
+// payload written by an older (or newer) build can drift from what the
+// current render code expects. Rather than trusting a cast, every read
+// validates the shape and silently drops malformed entries — corrupt data
+// degrades to "no history" instead of crashing the dashboard.
+// ---------------------------------------------------------------------------
+
+/** Current schema version written into every history payload. */
+export const SCHEMA_VERSION = 3;
+
+function isObj(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Structural check for an AnalysisReport — deep enough to catch drift and
+ *  corruption without validating all ~40 fields. */
+function isReportShape(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  const r = v as Record<string, unknown>;
+  const num = (x: unknown) => typeof x === "number" && Number.isFinite(x);
+  return (
+    isObj(r.ratios) &&
+    num((r.ratios as Record<string, unknown>).jawlineAngle) &&
+    isObj(r.symmetry) &&
+    num((r.symmetry as Record<string, unknown>).overall) &&
+    isObj(r.posture) &&
+    isObj(r.smile) &&
+    num((r.smile as Record<string, unknown>).score) &&
+    isObj(r.eyes) &&
+    isObj(r.light) &&
+    num((r.light as Record<string, unknown>).brightness) &&
+    isObj(r.imageQuality) &&
+    typeof r.summary === "string" &&
+    typeof r.generatedAt === "string"
+  );
+}
+
+function isLandmarksShape(v: unknown): boolean {
+  return (
+    v === null ||
+    (Array.isArray(v) &&
+      (v.length === 0 ||
+        (isObj(v[0]) &&
+          typeof v[0].x === "number" &&
+          typeof v[0].y === "number")))
+  );
+}
+
+function isPersistedAnalysisShape(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  const e = v as Record<string, unknown>;
+  return (
+    typeof e.id === "string" &&
+    isReportShape(e.report) &&
+    isLandmarksShape(e.landmarks) &&
+    (e.image === null || typeof e.image === "string") &&
+    typeof e.thumb === "string" &&
+    typeof e.savedAt === "string"
+  );
+}
+
+/**
+ * Read + validate + repair a history array, dropping malformed entries.
+ * Handles both storage layouts:
+ *  • Legacy raw array (written before schema versioning) — accepted, entries
+ *    still deep-validated.
+ *  • Versioned envelope { version, entries } — envelopes stamped by a NEWER
+ *    schema than this build understands are discarded whole (reading them
+ *    would misinterpret fields); current/older versions are read normally.
+ * The next save re-writes the payload in the current format, completing the
+ * forward migration.
+ */
+function readHistory(slot: PersistSlot): PersistedAnalysis[] {
+  const raw = readJson<unknown>(historyKey(slot));
+  if (Array.isArray(raw)) {
+    return raw.filter(isPersistedAnalysisShape);
+  }
+  if (isObj(raw) && Array.isArray(raw.entries)) {
+    if (
+      typeof raw.version === "number" &&
+      raw.version > SCHEMA_VERSION
+    ) {
+      console.warn(
+        `[chizle] ${slot} history written by newer schema v${raw.version} — ignoring until resaved`,
+      );
+      return [];
+    }
+    return raw.entries.filter(isPersistedAnalysisShape);
+  }
+  return [];
+}
+
 function writeJson(key: string, value: unknown): void {
   if (typeof window === "undefined") return;
   try {
@@ -89,37 +184,23 @@ function historyKey(slot: PersistSlot): string {
   return scopedPrefix() + "history:" + slot;
 }
 
-function isAnalysis(v: unknown): v is PersistedAnalysis {
-  return (
-    !!v &&
-    typeof v === "object" &&
-    "report" in (v as Record<string, unknown>) &&
-    "thumb" in (v as Record<string, unknown>)
-  );
-}
-
-/** Read + sanitize a history array, dropping malformed entries. */
-function readHistory(slot: PersistSlot): PersistedAnalysis[] {
-  const raw = readJson<unknown[]>(historyKey(slot));
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(isAnalysis);
-}
-
 function writeHistory(slot: PersistSlot, list: PersistedAnalysis[]): void {
-  writeJson(historyKey(slot), list.slice(0, MAX_HISTORY));
+  // Version-stamped so future schema changes can detect (and migrate or
+  // discard) payloads written by other builds.
+  writeJson(historyKey(slot), {
+    version: SCHEMA_VERSION,
+    entries: list.slice(0, MAX_HISTORY),
+  });
 }
 
 function readCompareHistory(): PersistedCompareEntry[] {
-  const raw = readJson<unknown[]>(scopedPrefix() + "history:compare");
+  const raw = readJson<unknown>(scopedPrefix() + "history:compare");
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (v): v is PersistedCompareEntry =>
-      !!v &&
-      typeof v === "object" &&
-      "before" in (v as Record<string, unknown>) &&
-      "after" in (v as Record<string, unknown>) &&
-      isAnalysis((v as PersistedCompareEntry).before) &&
-      isAnalysis((v as PersistedCompareEntry).after),
+      isObj(v) &&
+      isPersistedAnalysisShape(v.before) &&
+      isPersistedAnalysisShape(v.after),
   );
 }
 

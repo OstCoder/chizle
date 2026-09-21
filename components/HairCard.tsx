@@ -52,7 +52,7 @@ export function HairCard({ shape, hair }: HairCardProps) {
           </p>
         </>
       ) : (
-        <div className="flex items-start gap-2 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
           <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" />
           <p className="text-xs leading-relaxed text-white/55">
             Hair isn&apos;t clearly visible in this shot (pulled back, covered,

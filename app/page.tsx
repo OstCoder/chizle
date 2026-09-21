@@ -2,36 +2,11 @@ import Link from "next/link";
 import {
   ArrowRight,
   Camera,
-  GitCompareArrows,
-  Sparkles,
   ScanFace,
   ShieldCheck,
   Wand2,
+  CheckCircle2,
 } from "lucide-react";
-
-const capabilities = [
-  {
-    title: "Analyze a photo",
-    desc: "Get symmetry, ratios, posture, expression, and hair reads — with fixes ordered from now to long-term.",
-    href: "/analyze",
-    icon: Camera,
-    accent: "from-accent-500/20 to-accent-500/0",
-  },
-  {
-    title: "Then vs Now",
-    desc: "Compare two photos and surface the measurable improvements — and what still needs work.",
-    href: "/compare",
-    icon: GitCompareArrows,
-    accent: "from-sky-500/20 to-sky-500/0",
-  },
-  {
-    title: "Dating profile scorecard",
-    desc: "Score a photo for a dating app or for real life — lighting, filters, grooming, and presence with a verdict and tips.",
-    href: "/scorecard",
-    icon: Sparkles,
-    accent: "from-pink-500/20 to-pink-500/0",
-  },
-];
 
 export default function Home() {
   return (
@@ -40,27 +15,28 @@ export default function Home() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wider text-white/60">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-500" />
-            Objective · private · in-browser
+            AI photo analysis · private · in-browser
           </div>
           <h1 className="text-balance text-5xl font-semibold tracking-tight md:text-6xl">
-            See yourself through{" "}
+            One photo.{" "}
             <span className="bg-gradient-to-br from-accent-300 to-accent-600 bg-clip-text text-transparent">
-              clearer eyes.
+              Your daily routine.
             </span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-balance text-lg leading-relaxed text-white/60">
-            Upload a photo. Chizle maps your features, scores symmetry, ratios,
-            posture, and expression, then hands you a list of practical,
-            non-invasive tweaks. No filters, no faking — just honest feedback.
+            Upload a selfie and Chizle&apos;s AI maps your face, scores what it
+            sees, and hands you a personalized daily routine in seconds — the
+            exact tweaks that will move your read. Nothing to learn, nothing to
+            configure.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/auth?returnTo=/analyze" className="btn-primary">
-              <ScanFace className="h-4 w-4" />
-              Create your profile <ArrowRight className="h-4 w-4" />
+              <Camera className="h-4 w-4" />
+              Get your first scan <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/auth?returnTo=/scorecard" className="btn-secondary">
-              <Sparkles className="h-4 w-4" />
-              Log in to analyze
+            <Link href="/auth?returnTo=/dashboard" className="btn-secondary">
+              <ScanFace className="h-4 w-4" />
+              See my routine
             </Link>
           </div>
           <div className="mt-8 flex items-center justify-center gap-2 text-xs text-white/40">
@@ -72,34 +48,27 @@ export default function Home() {
 
       <section>
         <h2 className="mb-6 text-sm font-medium uppercase tracking-wider text-white/40">
-          Three things it does
+          From photo to routine in one minute
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
-          {capabilities.map((c) => (
-            <Link
-              key={c.href}
-              href={c.href}
-              className="group card relative overflow-hidden p-6 transition-transform hover:-translate-y-0.5"
-            >
-              <div
-                className={`pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br ${c.accent} opacity-60`}
-              />
-              <div className="relative">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 text-white/80">
-                  <c.icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-lg font-semibold tracking-tight">
-                  {c.title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/55">
-                  {c.desc}
-                </p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm text-accent-400 opacity-0 transition-opacity group-hover:opacity-100">
-                  Open <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-              </div>
-            </Link>
-          ))}
+          <Step
+            n="1"
+            icon={Camera}
+            title="Upload a selfie"
+            body="Any front-facing photo works. The AI maps 468 facial landmarks right in your browser — the image never leaves your device."
+          />
+          <Step
+            n="2"
+            icon={ScanFace}
+            title="Get your instant read"
+            body="Chizle scores symmetry, definition, and expression, then identifies the small number of changes that actually matter for you."
+          />
+          <Step
+            n="3"
+            icon={CheckCircle2}
+            title="Follow your daily routine"
+            body="One personalized checklist: the facial exercises, grooming steps, and habits that move your score. Check them off in under a minute a day."
+          />
         </div>
       </section>
 
@@ -107,7 +76,7 @@ export default function Home() {
         <Pillar
           icon={Wand2}
           title="Actionable, not aesthetic"
-          body="Every weakspot is paired with a practical habit, posture cue, or style fix. No surgical advice, no harsh judgment."
+          body="Every insight is paired with a practical habit, posture cue, or style fix. No surgical advice, no harsh judgment."
         />
         <Pillar
           icon={ScanFace}
@@ -121,22 +90,43 @@ export default function Home() {
         />
       </section>
 
-      <section className="grid gap-6 md:grid-cols-3">
-        <Step n="1" title="Create your profile" body="Answer a few quick questions so Chizle can tailor your recommendations to your goals and style." />
-        <Step n="2" title="Read the breakdown" body="Symmetry, ratios, posture, expression, hair, and prioritized weakspots with practical, non-invasive fixes." />
-        <Step n="3" title="Compare and improve" body="Run a dating-profile scorecard, or compare two photos side by side to see what actually moved." />
+      <section className="card mx-auto max-w-2xl p-8 text-center sm:p-10">
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Your first scan takes 15 seconds.
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">
+          Answer two quick questions, upload a photo, and your personalized
+          daily routine is waiting. That&apos;s the whole setup.
+        </p>
+        <Link href="/auth?returnTo=/analyze" className="btn-primary mt-6">
+          <Camera className="h-4 w-4" />
+          Start now <ArrowRight className="h-4 w-4" />
+        </Link>
       </section>
     </div>
   );
 }
 
-function Step({ n, title, body }: { n: string; title: string; body: string }) {
+function Step({
+  n,
+  icon: Icon,
+  title,
+  body,
+}: {
+  n: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+}) {
   return (
     <div className="card p-6">
-      <span className="grid h-8 w-8 place-items-center rounded-full border border-accent-500/30 bg-accent-500/10 text-sm font-semibold text-accent-300">
-        {n}
-      </span>
-      <h3 className="mt-4 text-base font-semibold">{title}</h3>
+      <div className="flex items-center justify-between">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 text-white/80">
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="font-mono text-sm text-accent-400/70">{n}</span>
+      </div>
+      <h3 className="mt-4 text-lg font-semibold tracking-tight">{title}</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-white/55">{body}</p>
     </div>
   );

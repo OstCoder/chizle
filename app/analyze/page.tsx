@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ImageUploader } from "@/components/ImageUploader";
-import { AnalysisView } from "@/components/AnalysisView";
-import { AngleGuard } from "@/components/AngleGuard";
 import { LoadingPanel } from "@/components/LoadingPanel";
 import { HistoryStrip, type HistoryItem } from "@/components/HistoryStrip";
 import { CopyButton } from "@/components/CopyButton";
@@ -27,26 +26,69 @@ import {
 } from "@/lib/imageData";
 import { cap } from "@/lib/utils";
 import { HAIR_COLOR_LABEL, hairTextureLabel } from "@/lib/hair";
-import { ScanFace, Sparkles } from "lucide-react";
+import { rateFace } from "@/lib/ratings";
+import { PanelSkeleton } from "@/components/PanelSkeleton";
+import { EmptyStateCard } from "@/components/EmptyState";
+import { ScanFace, Sparkles, ChevronDown } from "lucide-react";
+
+// Heavy, below-the-fold or on-demand panels load as separate chunks so the
+// initial route bundle stays small. Each is only fetched once its render
+// conditions are met (a report exists / the user exports).
+const AnalysisView = dynamic(
+  () => import("@/components/AnalysisView").then((m) => m.AnalysisView),
+  {
+    loading: () => <PanelSkeleton label="Building the visual breakdown…" />,
+    ssr: false,
+  },
+);
+const RatingPanel = dynamic(
+  () => import("@/components/RatingPanel").then((m) => m.RatingPanel),
+  { loading: () => <PanelSkeleton label="Scoring your scan…" />, ssr: false },
+);
+const ProgressTracker = dynamic(
+  () => import("@/components/ProgressTracker").then((m) => m.ProgressTracker),
+  {
+    loading: () => <PanelSkeleton label="Loading your progress chart…" />,
+    ssr: false,
+  },
+);
+const ExportReportButton = dynamic(
+  () => import("@/components/ExportReportButton").then(
+    (m) => m.ExportReportButton,
+  ),
+  { ssr: false },
+);
 
 export default function AnalyzePage() {
+  const [showDetails, setShowDetails] = useState(false);
   const [image, setImage] = useState<ImageData | null>(null);
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [restored, setRestored] = useState<PersistedAnalysis | null>(null);
   const [history, setHistory] = useState<PersistedAnalysis[]>([]);
   const [scopeReady, setScopeReady] = useState(false);
+  // Bumped by the empty-state CTA so ImageUploader opens its file picker —
+  // one click from "no photo yet" straight into the scan flow.
+  const [pickerOpen, setPickerOpen] = useState(0);
   const { report, landmarks, bundle, loading, error } = useAnalyze(
     image,
     restored,
   );
-
-  // Side / profile photos are rejected with a friendly guard: FaceMesh
-  // geometry (ratios, symmetry) is only meaningful front-on. The flag is
-  // also checked for legacy persisted reports that predate `sideAngle`.
-  const sideAngle =
-    report !== null &&
-    (report.sideAngle === true || report.angle === "profile");
+  const [showBreakdown, setShowBreakdown] = useState(true);
+  const rating = useMemo(
+    () => (report && report.imageQuality.hasFace ? rateFace(report) : null),
+    [report],
+  );
+  // The persisted entry matching what's on screen: the restored entry when
+  // viewing history, otherwise the freshly saved head of the history list.
+  // The generatedAt check guarantees the PDF can't mix a new report with an
+  // older entry while the save effect is still catching up.
+  const exportEntry =
+    restored ??
+    (history[0] && history[0].report.generatedAt === report?.generatedAt
+      ? history[0]
+      : null) ??
+    null;
 
   const refreshHistory = useCallback(() => {
     setHistory(loadHistory("analyze") as PersistedAnalysis[]);
@@ -88,11 +130,9 @@ export default function AnalyzePage() {
     refreshHistory();
   }, [scopeReady, refreshHistory]);
 
-  // Persist the freshest analysis to the front of the history. Rejected
-  // (side-angle) scans are not results — don't clutter history with them.
+  // Persist the freshest analysis to the front of the history.
   useEffect(() => {
     if (!report || !image || !scopeReady) return;
-    if (report.sideAngle === true || report.angle === "profile") return;
     saveAnalysis("analyze", {
       report,
       landmarks,
@@ -173,7 +213,7 @@ export default function AnalyzePage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
-        <div className="min-w-0 space-y-3">
+        <div className="space-y-3">
           <ImageUploader
             onImage={(data, img) => {
               if (!data) {
@@ -186,6 +226,7 @@ export default function AnalyzePage() {
               setRestored(null);
             }}
             resetSignal={resetKey}
+            openSignal={pickerOpen}
           />
           {(image || restored) && (
             <button
@@ -198,23 +239,21 @@ export default function AnalyzePage() {
           )}
         </div>
 
-        <div className="min-w-0 space-y-3">
+        <div className="space-y-3">
           {!image && !restored && (
-            <div className="card flex h-full min-h-[260px] flex-col items-center justify-center gap-2 p-6 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-xl bg-white/5">
-                <ScanFace className="h-5 w-5 text-white/50" />
-              </span>
-              <p className="text-sm font-medium">No image yet</p>
-              <p className="max-w-xs text-xs text-white/40">
-                Your photo will be processed entirely in the browser. Nothing
-                is uploaded.
-              </p>
-              {bundle === "loading" && (
-                <p className="mt-2 text-xs text-accent-300">
-                  Warming up the face detector in the background…
-                </p>
-              )}
-            </div>
+            <EmptyStateCard
+              eyebrow="Face analysis"
+              title="Start with your first scan"
+              body="One front-facing photo is all it takes — Chizle maps 468 landmarks on-device and turns them into your ratings, potential score, and daily action plan."
+              ctaLabel="Upload your photo"
+              ctaHref="/analyze"
+              onCtaClick={() => setPickerOpen((n) => n + 1)}
+              statusNote={
+                bundle === "loading"
+                  ? "Warming up the face detector in the background…"
+                  : undefined
+              }
+            />
           )}
           {!image && restored && (
             <div className="card flex h-full min-h-[260px] flex-col items-center justify-center gap-2 p-6 text-center">
@@ -233,8 +272,7 @@ export default function AnalyzePage() {
           {error && (
             <div className="card p-5 text-sm text-red-300">{error}</div>
           )}
-          {report && (image || restored) && sideAngle && <AngleGuard />}
-          {report && (image || restored) && !sideAngle && (
+          {report && (image || restored) && (
             <div className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent-400" />
@@ -251,14 +289,14 @@ export default function AnalyzePage() {
                     text={formatAnalysisReport(report)}
                     label="Copy report"
                   />
+                  {rating && exportEntry && (
+                    <ExportReportButton entry={exportEntry} rating={rating} />
+                  )}
                 </div>
               </div>
               <p className="text-sm text-white/80">{report.summary}</p>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Stat label="Shape" value={report.shape} />
-                <Stat label="Symmetry" value={`${Math.round(report.symmetry.overall)}/100`} />
-                <Stat label="Smile" value={`${report.smile.score}/100`} />
-                <Stat label="Angle" value={report.angle} />
                 <Stat
                   label="Photo quality"
                   value={
@@ -269,15 +307,41 @@ export default function AnalyzePage() {
                         : "Poor"
                   }
                 />
-                <Stat
-                  label="Hair"
-                  value={
-                    report.hair?.visible
-                      ? `${hairTextureLabel(report.hair)} · ${HAIR_COLOR_LABEL[report.hair.color]}`
-                      : "Not in frame"
-                  }
-                />
               </div>
+              <button
+                type="button"
+                onClick={() => setShowDetails((v) => !v)}
+                aria-expanded={showDetails}
+                className="mt-3 flex items-center gap-1.5 text-xs font-medium text-accent-300 transition-colors hover:text-accent-200"
+              >
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${showDetails ? "rotate-180" : ""}`}
+                />
+                {showDetails ? "Hide detailed analysis" : "View detailed analysis"}
+              </button>
+              {showDetails && (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Stat label="Symmetry" value={`${Math.round(report.symmetry.overall)}/100`} />
+                  <Stat label="Smile" value={`${report.smile.score}/100`} />
+                  <Stat label="Angle" value={report.angle} />
+                  <Stat
+                    label="Hair"
+                    value={
+                      report.hair?.visible
+                        ? `${hairTextureLabel(report.hair)} · ${HAIR_COLOR_LABEL[report.hair.color]}`
+                        : "Not in frame"
+                    }
+                  />
+                  <Stat label="Eye level" value={`${Math.round(report.symmetry.eyeLevel)}/100`} />
+                  <Stat label="Cheek level" value={`${Math.round(report.symmetry.cheekLevel)}/100`} />
+                  <Stat label="Lip level" value={`${Math.round(report.symmetry.lipLevel)}/100`} />
+                  <Stat label="Thirds balance" value={`${Math.round(report.ratios.thirdsBalance * 100)}%`} />
+                  <Stat label="Jawline angle" value={`${Math.round(report.ratios.jawlineAngle)}°`} />
+                  <Stat label="Head tilt" value={`${report.posture.headTiltDeg.toFixed(1)}°`} />
+                  <Stat label="Chin level" value={`${Math.round(report.posture.chinToCamera * 100)}%`} />
+                  <Stat label="Yaw" value={`${report.posture.yawDeg.toFixed(1)}°`} />
+                </div>
+              )}
               {report.imageQuality.reason && (
                 <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-white/65">
                   <span className="font-medium text-amber-200">
@@ -294,20 +358,32 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      {report && imgEl && !sideAngle && (
+      {report && imgEl && (
         <div className="pt-2">
           <AnalysisView report={report} image={imgEl} landmarks={landmarks} />
         </div>
       )}
 
+      {report && rating && (
+        <div id="potential" className="scroll-mt-24 pt-2">
+          <RatingPanel
+            rating={rating}
+            expanded={showBreakdown}
+            onToggle={() => setShowBreakdown((v) => !v)}
+          />
+        </div>
+      )}
+
       <HistoryStrip items={historyItems} />
+
+      <ProgressTracker history={history} />
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5">
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
       <div className="text-[11px] uppercase tracking-wider text-white/40">
         {label}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 
 interface RingChartProps {
   value: number; // 0..100
@@ -23,7 +23,11 @@ export function RingChart({
   sublabel,
 }: RingChartProps) {
   const gradientId = useId();
-  const pct = Math.max(0, Math.min(100, value));
+  // Start empty and sweep to the target on mount so the ring visibly "draws"
+  // itself in (the CSS transition does the animating; this just stages it).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const pct = mounted ? Math.max(0, Math.min(100, value)) : 0;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - pct / 100);
@@ -67,12 +71,12 @@ export function RingChart({
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
           {label && (
-            <p className="text-4xl font-semibold tracking-tight text-white">
+            <p className="score-value text-4xl text-white">
               {label}
             </p>
           )}
           {sublabel && (
-            <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
+            <p className="score-label">
               {sublabel}
             </p>
           )}

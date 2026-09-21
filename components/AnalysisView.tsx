@@ -1,17 +1,19 @@
 "use client";
 
+import { useMemo } from "react";
 import type {
   ActionTiming,
   AnalysisReport,
   LandmarkPoint,
   Weakspot,
 } from "@/types/analysis";
-import { CalendarDays, TrendingUp, Zap } from "lucide-react";
+import { CalendarDays, ChevronDown, Target, TrendingUp, Zap } from "lucide-react";
 import { MeshOverlay } from "./MeshOverlay";
 import { MetricBar } from "./MetricBar";
 import { WeakspotCard } from "./WeakspotCard";
 import { HairCard } from "./HairCard";
 import { UNKNOWN_HAIR } from "@/lib/hair";
+import { rateFace } from "@/lib/ratings";
 import { Meter, Tags, Brain, Smile, Sparkles } from "./icons";
 
 interface AnalysisViewProps {
@@ -101,6 +103,7 @@ const METER_CONFLICT_IDS: Record<HighlightMeter["id"], string[]> = {
 
 function HighlightsCard({ report }: { report: AnalysisReport }) {
   const eyeAvg = (report.eyes.leftOpen + report.eyes.rightOpen) / 2;
+  const rating = useMemo(() => rateFace(report), [report]);
   // Lighting is intentionally not a highlight meter here: it's not an
   // improvement area for the analyze view (it belongs to the dating scorecard).
   const meters: HighlightMeter[] = [
@@ -200,6 +203,54 @@ function HighlightsCard({ report }: { report: AnalysisReport }) {
           Highlights
         </h2>
       </div>
+
+      {/* Potential meter — click to jump to the full breakdown below. */}
+      <button
+        type="button"
+        onClick={() =>
+          document
+            .getElementById("potential")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+        className="group mb-4 block w-full rounded-xl border border-accent-500/20 bg-accent-500/[0.06] px-4 py-3 text-left transition-colors hover:border-accent-500/40 hover:bg-accent-500/[0.1]"
+      >
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-accent-400" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-300">
+            Potential
+          </span>
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-white/45 transition-colors group-hover:text-accent-200">
+            Full breakdown
+            <ChevronDown className="h-3.5 w-3.5" />
+          </span>
+        </div>
+        <div className="mt-2 flex items-baseline gap-1.5">
+          <span className="score-value text-lg text-white">
+            {rating.current.toFixed(1)}
+          </span>
+          <span className="text-xs text-white/40">→</span>
+          <span className="score-value text-lg text-accent-300">
+            {rating.potential.toFixed(1)}
+          </span>
+          <span className="text-xs text-white/40">/10</span>
+          {rating.totalGain > 0 && (
+            <span className="ml-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+              +{rating.totalGain.toFixed(1)} available
+            </span>
+          )}
+        </div>
+        <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-white/8">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-300"
+            style={{ width: `${rating.current * 10}%` }}
+          />
+          {/* Potential marker on the same scale. */}
+          <span
+            className="absolute top-1/2 h-3 w-[2px] -translate-y-1/2 rounded-full bg-accent-200 shadow-[0_0_6px_rgba(253,186,116,0.8)]"
+            style={{ left: `calc(${rating.potential * 10}% - 1px)` }}
+          />
+        </div>
+      </button>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Areas to focus on — worst stats with practical fixes, ordered now → later */}
@@ -335,7 +386,7 @@ function Stat({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5">
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/40">
         {icon}
         {label}
