@@ -11,19 +11,23 @@
 // scores, and finishing the full personalized routine on a day adds a bonus.
 
 import { hubGet, hubSet, todayKey } from "./hub";
+import {
+  dayIdArraySchema,
+  devValidate,
+  EXERCISE_IDS,
+  faceFitnessDaySchema,
+  numberValueSchema,
+} from "./schemas";
 import type { AnalysisReport } from "@/types/analysis";
 
 // ---------------------------------------------------------------------------
 // Exercise library
 // ---------------------------------------------------------------------------
 
-export type ExerciseId =
-  | "mewing-posture"
-  | "mewing-chew"
-  | "mewing-swallow"
-  | "neck-curl"
-  | "chin-tuck"
-  | "jaw-release";
+/** The id union is derived from EXERCISE_IDS in lib/schemas.ts — the same
+ *  runtime list the face-fitness day schema validates against — so a new or
+ *  removed exercise can't drift between the type, the library, and storage. */
+export type ExerciseId = (typeof EXERCISE_IDS)[number];
 
 export interface ExerciseStep {
   label: string;
@@ -305,18 +309,14 @@ export interface FaceFitnessDay {
 const EMPTY_DAY: FaceFitnessDay = { completed: [] };
 
 export function loadFaceFitnessDay(userId: string, date: string): FaceFitnessDay {
-  // Validated: corrupted storage must degrade to an empty day, not crash the
-  // fitness card or the streak engine that reads it.
+  // Validated against faceFitnessDaySchema: corrupted storage must degrade to
+  // an empty day (unknown exercise ids are filtered), not crash the fitness
+  // card or the streak engine that reads it.
   return hubGet<FaceFitnessDay>(
     userId,
     `facefitness:${date}`,
     EMPTY_DAY,
-    (v) =>
-      !!v &&
-      typeof v === "object" &&
-      !Array.isArray(v) &&
-      Array.isArray((v as FaceFitnessDay).completed) &&
-      (v as FaceFitnessDay).completed.every((x) => typeof x === "string"),
+    faceFitnessDaySchema,
   );
 }
 
@@ -325,6 +325,7 @@ export function saveFaceFitnessDay(
   date: string,
   day: FaceFitnessDay,
 ): void {
+  devValidate(faceFitnessDaySchema, day, "face-fitness day log");
   hubSet(userId, `facefitness:${date}`, day);
   // Points bookkeeping: one entry per active day.
   if (day.completed.length > 0) {
@@ -337,16 +338,17 @@ export function saveFaceFitnessDay(
 }
 
 export function loadActiveDays(userId: string): string[] {
-  const days = hubGet<string[]>(userId, "facefitness:days", []);
-  return Array.isArray(days) ? days.filter((d) => typeof d === "string") : [];
+  return hubGet<string[]>(userId, "facefitness:days", [], dayIdArraySchema);
 }
 
 export function loadPoints(userId: string): number {
-  return hubGet<number>(userId, "facefitness:points", 0);
+  return hubGet<number>(userId, "facefitness:points", 0, numberValueSchema);
 }
 
 export function savePoints(userId: string, points: number): void {
-  hubSet(userId, "facefitness:points", Math.max(0, Math.round(points)));
+  const clamped = Math.max(0, Math.round(points));
+  devValidate(numberValueSchema, clamped, "face-fitness points");
+  hubSet(userId, "facefitness:points", clamped);
 }
 
 // ---------------------------------------------------------------------------

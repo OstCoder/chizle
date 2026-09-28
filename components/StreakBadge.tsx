@@ -14,7 +14,7 @@ import {
   HUB_UPDATED_EVENT,
   hubGet,
   hubSet,
-  isAmpmShape,
+  ampmSchema,
   todayKey,
 } from "@/lib/hub";
 import {
@@ -77,7 +77,7 @@ export function StreakBadge({ userId }: StreakBadgeProps) {
       userId,
       `ampm:${dateKey}`,
       { am: false, pm: false },
-      isAmpmShape,
+      ampmSchema,
     );
     hubSet(userId, `ampm:${dateKey}`, { ...cur, [slot]: !cur[slot] });
     refresh();

@@ -27,7 +27,11 @@ import {
   imageDataToThumbURL,
   loadImageFromUrl,
 } from "@/lib/imageData";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import { GitCompareArrows } from "lucide-react";
 
 // The delta view only renders once both photos have been analyzed — keep it
@@ -62,7 +66,7 @@ export default function ComparePage() {
   const [scopeReady, setScopeReady] = useState(false);
 
   const refreshHistory = useCallback(() => {
-    setHistory(loadHistory("compare") as PersistedCompareEntry[]);
+    setHistory(loadHistory("compare"));
   }, []);
 
   // Resolve the signed-in user before touching persisted history so each
@@ -75,9 +79,11 @@ export default function ComparePage() {
         return;
       }
       const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
+      // Offline-tolerant: see analyze/page.tsx — keeps the account scope
+      // intact when the auth server is unreachable.
+      const user = await resolveClientUser(supabase);
       if (cancelled) return;
-      setStorageScope(data.user?.id ?? null);
+      setStorageScope(user?.id ?? null);
       setScopeReady(true);
     })();
     return () => {

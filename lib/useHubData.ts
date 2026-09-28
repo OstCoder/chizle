@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { loadHistory, setStorageScope } from "./persistence";
 import type { PersistedAnalysis } from "./persistence";
-import { createClient, isSupabaseConfigured } from "./supabase/browser";
+import { createClient, isSupabaseConfigured, resolveClientUser } from "./supabase/browser";
 
 export interface ProfileRow {
   id: string;
@@ -52,22 +52,25 @@ export function useHubData(): HubData {
         return;
       }
       const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
+      // Offline-tolerant: getUser() alone reports "no user" whenever the
+      // auth server is unreachable, which would bounce a service-worker-
+      // cached offline dashboard straight to /auth.
+      const currentUser = await resolveClientUser(supabase);
       if (cancelled) return;
-      if (!data.user) {
+      if (!currentUser) {
         router.replace("/auth?returnTo=/dashboard");
         return;
       }
-      setStorageScope(data.user.id);
+      setStorageScope(currentUser.id);
       const { data: prof } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", data.user.id)
+        .eq("id", currentUser.id)
         .maybeSingle<ProfileRow>();
       if (cancelled) return;
-      setUser(data.user);
+      setUser(currentUser);
       setProfile((prof as ProfileRow | null) ?? null);
-      setEntries(loadHistory("analyze") as PersistedAnalysis[]);
+      setEntries(loadHistory("analyze"));
       setReady(true);
     })();
     return () => {

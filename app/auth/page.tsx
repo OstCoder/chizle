@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, ScanFace, ShieldCheck } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import { Skeleton } from "@/components/Skeleton";
 
 function safeReturnTo(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
@@ -145,5 +146,25 @@ function AuthForm() {
 }
 
 function AuthLoading() {
-  return <div className="card mx-auto h-[520px] w-full max-w-md animate-pulse bg-white/[0.03]" aria-label="Loading authentication" />;
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading authentication"
+      className="card mx-auto h-[520px] w-full max-w-md space-y-4 p-6 sm:p-8"
+    >
+      {/* Shimmer skeleton of the auth card (toggle, heading, fields,
+          submit) so the form doesn't pop in when the session resolves. */}
+      <Skeleton className="h-11 w-full rounded-xl" />
+      <div className="space-y-2 pt-2">
+        <Skeleton className="h-7 w-52 max-w-full" />
+        <Skeleton className="h-3 w-72 max-w-full" />
+      </div>
+      <div className="space-y-3 pt-4">
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+      </div>
+    </div>
+  );
 }

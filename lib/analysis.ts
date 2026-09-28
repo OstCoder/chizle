@@ -6,6 +6,7 @@
 // for callers that didn't get blendshapes.
 
 import type { FaceLandmarkerResult } from "@mediapipe/tasks-vision";
+import { analysisReportSchema, devValidate } from "./schemas";
 import type {
   AnalysisReport,
   BlendshapeScores,
@@ -72,7 +73,7 @@ export function analyze(
     ? "Can't analyze photo due to angle — this looks like a side view. Retake it facing the camera straight-on."
     : buildSummary(shape, ratios, symmetry, posture, smile, hair, blendshapes);
 
-  return {
+  const report: AnalysisReport = {
     angle: posture.angle,
     sideAngle: isSideShot,
     shape,
@@ -88,6 +89,11 @@ export function analyze(
     summary,
     generatedAt: new Date().toISOString(),
   };
+  // Dev-only: verify the pipeline's output against the scan schema so a
+  // field mismatch (NaN metric, wrong enum, missing section) is reported with
+  // exact paths the moment the analysis code produces it.
+  devValidate(analysisReportSchema, report, "analysis report");
+  return report;
 }
 
 function emptyReport(

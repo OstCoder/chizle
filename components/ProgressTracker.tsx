@@ -5,10 +5,14 @@ import { Info, LineChart as LineChartIcon } from "lucide-react";
 import type { PersistedAnalysis } from "@/lib/persistence";
 import { rateFace } from "@/lib/ratings";
 import { cn } from "@/lib/utils";
+import type { ImageQuality } from "@/types/analysis";
 
 interface TrackerPoint {
   savedAt: string;
   date: string;
+  thumb: string; // small data-URL preview shown in the hover tooltip card
+  shape: string; // face shape recorded by that scan (FaceShape)
+  quality: ImageQuality; // photo-quality verdict recorded with that scan
   overall: number; // 0..10 face rating
   symmetry: number; // 0..100
   jawline: number; // 0..100 (sharpness, inverted angle read)
@@ -66,10 +70,74 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** Exact calendar date for the tooltip card, e.g. "Sep 24, 2026". */
+function dateLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Unknown date";
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Clock time the scan was saved, e.g. "7:42 PM". */
+function timeLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Tone + label for the photo-quality chip in the tooltip card. */
+const QUALITY_META: Record<ImageQuality, { label: string; className: string }> = {
+  good: {
+    label: "Good photo",
+    className: "border-emerald-400/25 bg-emerald-500/10 text-emerald-200",
+  },
+  ok: {
+    label: "Fair photo",
+    className: "border-amber-400/25 bg-amber-500/10 text-amber-200",
+  },
+  poor: {
+    label: "Poor photo",
+    className: "border-red-400/25 bg-red-500/10 text-red-200",
+  },
+};
+
+/**
+ * Trend vs the previous scan on the timeline: ▲3 / ▼2 (or ▲0.4 for the
+ * 0..10 overall), colored by direction. The first scan has nothing to
+ * compare against and renders an em dash.
+ */
+function Delta({
+  value,
+  prev,
+  digits = 0,
+}: {
+  value: number;
+  prev?: number;
+  digits?: number;
+}) {
+  if (prev === undefined) return <span className="text-white/30">—</span>;
+  const d = Number((value - prev).toFixed(digits));
+  if (d === 0) return <span className="text-white/35">·0</span>;
+  return (
+    <span className={d > 0 ? "text-emerald-300" : "text-red-300"}>
+      {d > 0 ? "▲" : "▼"}
+      {Math.abs(d).toFixed(digits)}
+    </span>
+  );
+}
+
 /**
  * Glow-Up Progress Tracker: plots the scan history (newest → oldest, shown
  * oldest → newest) as interactive lines for symmetry, jawline sharpness, and
- * skin clarity, with the overall face rating as a small sparkline row.
+ * skin clarity. Hovering (or tapping, on touch) a point on the timeline opens
+ * a rich tooltip card with that day's scan thumbnail, exact date, and the
+ * metrics recorded at that time.
  */
 export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -87,6 +155,9 @@ export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
           return {
             savedAt: e.savedAt,
             date: shortDate(e.savedAt),
+            thumb: e.thumb,
+            shape: e.report.shape,
+            quality: e.report.imageQuality.quality,
             overall: rating.current,
             symmetry: Math.round(e.report.symmetry.overall),
             // Jawline sharpness: angle reads sharper when smaller, so invert
@@ -141,6 +212,17 @@ export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
   const multi = points.length > 1;
   const innerW = W - PAD.left - PAD.right;
 
+  // Floating tooltip state: the hovered point plus a clamped horizontal
+  // offset so the card never spills past the chart's left/right edges.
+  const hoverIdx = hover !== null && points[hover] ? hover : null;
+  const hoverPoint = hoverIdx !== null ? points[hoverIdx] : null;
+  // The scan just before the hovered one (timeline is oldest → newest), so
+  // the card can show how each metric moved since the last visit.
+  const prevPoint =
+    hoverIdx !== null && hoverIdx > 0 ? points[hoverIdx - 1] : null;
+  const hoverPct = hoverIdx !== null ? xFor(hoverIdx, points.length) / W : 0;
+  const tooltipTx = hoverPct < 0.22 ? "0%" : hoverPct > 0.78 ? "-100%" : "-50%";
+
   return (
     <div className="card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -177,12 +259,16 @@ export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
       </div>
 
       <div className="mt-4 overflow-x-auto">
+        <div className="relative w-full min-w-[520px]">
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          className="w-full min-w-[520px]"
+          className="w-full"
           role="img"
           aria-label="Line chart of symmetry, jawline sharpness, and skin clarity across your scans"
-          onMouseLeave={() => setHover(null)}
+          onPointerLeave={(e) => {
+            // Touch keeps the card up until the next tap; mouse clears on exit.
+            if (e.pointerType !== "touch") setHover(null);
+          }}
         >
           {/* Horizontal gridlines */}
           {[0, 25, 50, 75, 100].map((v) => (
@@ -264,7 +350,18 @@ export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
                 width={innerW / points.length}
                 height={H - PAD.bottom}
                 fill="transparent"
-                onMouseEnter={() => setHover(i)}
+                onPointerEnter={(e) => {
+                  // Touch selects on pointerdown instead, so a second tap on
+                  // the same column can dismiss the card again.
+                  if (e.pointerType !== "touch") setHover(i);
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType === "touch") {
+                    setHover((prev) => (prev === i ? null : i));
+                  } else {
+                    setHover(i);
+                  }
+                }}
               />
               {hover === i && (
                 <line
@@ -279,35 +376,116 @@ export function ProgressTracker({ history }: { history: PersistedAnalysis[] }) {
             </g>
           ))}
         </svg>
-      </div>
 
-      {/* Hover readout */}
-      <div className="mt-2 min-h-[52px]">
-        {hover !== null && points[hover] ? (
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <p className="text-xs font-medium text-white/80">
-                {new Date(points[hover].savedAt).toLocaleString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </p>
-              <p className="text-xs text-white/50">
-                Overall <span className="font-mono text-white/85">{points[hover].overall.toFixed(1)}</span>/10
-              </p>
-              {SERIES.filter((s) => !hidden.has(s.key)).map((s) => (
-                <p key={s.key} className={cn("text-xs", s.color)}>
-                  {s.label} <span className="font-mono text-white/85">{points[hover][s.key]}</span>
+        {/* Rich tooltip card: follows the hovered/tapped column across the
+            timeline and shows that day's exact scan thumbnail, date, and
+            recorded metrics. Pinned to the top of the plot so it never gets
+            clipped by the horizontal scroll container. Pointer-events-none so
+            it can't steal hover from the column targets underneath. */}
+        {hoverPoint && (
+          <div
+            className="pointer-events-none absolute top-0 z-10 w-60 rounded-xl border border-white/15 bg-ink-900/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl transition-[left] duration-150 ease-out"
+            style={{
+              left: `${hoverPct * 100}%`,
+              transform: `translate(${tooltipTx}, 0)`,
+            }}
+          >
+            <div className="flex items-start gap-2.5">
+              {hoverPoint.thumb ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={hoverPoint.thumb}
+                  alt=""
+                  className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-white/15"
+                />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white/5 ring-1 ring-white/10">
+                  <LineChartIcon className="h-5 w-5 text-white/35" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-xs font-semibold leading-snug text-white">
+                  {dateLabel(hoverPoint.savedAt)}
                 </p>
+                <p className="mt-0.5 text-[10px] text-white/45">
+                  {timeLabel(hoverPoint.savedAt)} ·{" "}
+                  <span className="capitalize">{hoverPoint.shape}</span> face
+                </p>
+                <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-xs text-white/60">
+                  <span>Overall</span>
+                  <span className="font-mono text-sm font-semibold text-accent-300">
+                    {hoverPoint.overall.toFixed(1)}
+                  </span>
+                  <span className="text-white/40">/10</span>
+                  <Delta
+                    value={hoverPoint.overall}
+                    prev={prevPoint?.overall}
+                    digits={1}
+                  />
+                  {prevPoint && (
+                    <span className="text-[10px] text-white/35">vs prev</span>
+                  )}
+                </p>
+                {/* Photo quality recorded with this scan — a poor photo
+                    explains an otherwise mysterious dip in the lines. */}
+                <span
+                  className={cn(
+                    "mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                    QUALITY_META[hoverPoint.quality].className,
+                  )}
+                >
+                  {QUALITY_META[hoverPoint.quality].label}
+                </span>
+              </div>
+            </div>
+            <div className="mt-2.5 space-y-1.5 border-t border-white/10 pt-2.5">
+              {SERIES.map((s) => (
+                <div key={s.key} className="flex items-center gap-2">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ background: s.stroke }}
+                  />
+                  <span className="w-[84px] shrink-0 truncate text-[10px] text-white/55">
+                    {s.label}
+                  </span>
+                  <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${hoverPoint[s.key]}%`,
+                        background: s.stroke,
+                      }}
+                    />
+                  </span>
+                  <span className="w-5 text-right font-mono text-[11px] font-semibold text-white/85">
+                    {hoverPoint[s.key]}
+                  </span>
+                  <span className="w-7 text-right font-mono text-[10px] font-medium">
+                    <Delta value={hoverPoint[s.key]} prev={prevPoint?.[s.key]} />
+                  </span>
+                </div>
               ))}
             </div>
           </div>
-        ) : (
-          <p className="flex items-center gap-1.5 text-xs text-white/35">
-            <Info className="h-3.5 w-3.5" />
-            Hover over the chart to inspect a scan {multi ? "" : "— one scan saved so far"}
+        )}
+        </div>
+      </div>
+
+      {/* Hint + screen-reader equivalent of the floating tooltip */}
+      <div className="mt-2 min-h-[20px]">
+        <p className="flex items-center gap-1.5 text-xs text-white/35">
+          <Info className="h-3.5 w-3.5" />
+          {multi
+            ? "Hover or tap a point on the timeline to see that day's scan, date, and scores — tap it again to dismiss."
+            : "One scan saved so far — tap it to see the recorded scores."}
+        </p>
+        {hoverPoint && (
+          <p className="sr-only" role="status">
+            Scan from {dateLabel(hoverPoint.savedAt)} at{" "}
+            {timeLabel(hoverPoint.savedAt)}. Overall{" "}
+            {hoverPoint.overall.toFixed(1)} out of 10. Symmetry{" "}
+            {hoverPoint.symmetry}. Jawline sharpness {hoverPoint.jawline}. Skin
+            clarity {hoverPoint.clarity}. Photo quality {hoverPoint.quality}.
           </p>
         )}
       </div>

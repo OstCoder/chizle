@@ -16,7 +16,7 @@ import { EmptyStateCard } from "@/components/EmptyState";
 import { WidgetErrorBoundary } from "@/components/ErrorBoundary";
 import { useHubData } from "@/lib/useHubData";
 import { waterTarget } from "@/lib/glow";
-import { hubGet, hubSet } from "@/lib/hub";
+import { hubGet, hubSet, trainingVariantSchema } from "@/lib/hub";
 import type { TrainingVariant } from "@/lib/training";
 
 export default function HabitsPage() {
@@ -27,7 +27,14 @@ export default function HabitsPage() {
   // All hooks run unconditionally (before the auth early-return).
   useEffect(() => {
     if (!userId) return;
-    setVariant(hubGet<TrainingVariant>(userId, "training-variant", "gym"));
+    setVariant(
+      hubGet<TrainingVariant>(
+        userId,
+        "training-variant",
+        "gym",
+        trainingVariantSchema,
+      ),
+    );
   }, [userId]);
 
   useEffect(() => {

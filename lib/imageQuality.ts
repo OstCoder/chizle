@@ -155,16 +155,53 @@ export function computeLightQuality(
 
 const LAPLACIAN_REFERENCE = 500;
 
+/**
+ * Lighting-related quality reasons (exposure + evenness) derived from a
+ * computed light report. Shared between the full assessment below and the
+ * uploader's pre-scan check (lib/uploadDiagnostics) so the two can never
+ * drift apart — the warning a user sees before scanning must use the exact
+ * thresholds that would flag the photo after scanning.
+ */
+export function lightingReasons(
+  light: Pick<LightQualityReport, "brightness" | "evenness">,
+): string[] {
+  const reasons: string[] = [];
+  if (light.brightness < 60) reasons.push("Image is too dark");
+  if (light.brightness > 220) reasons.push("Image is overexposed");
+  if (light.evenness < 0.55) reasons.push("Lighting is uneven across the face");
+  return reasons;
+}
+
+/**
+ * Reasons measurable from pixels alone (no face pass): exposure, evenness,
+ * sharpness, and resolution — the exact thresholds assessImageQuality uses.
+ * Shared with the uploader's pre-scan check (lib/uploadDiagnostics) so the
+ * warning a user sees before scanning uses the same thresholds that would
+ * flag the photo after scanning.
+ */
+export function pixelQualityReasons(
+  data: ImageData,
+  light: LightQualityReport,
+): string[] {
+  const reasons = lightingReasons(light);
+  if (light.sharpness < 0.15) reasons.push("Image is blurry or low-resolution");
+  if (data.width < 320 || data.height < 320) {
+    reasons.push("Image resolution is too low");
+  }
+  return reasons;
+}
+
+/** Pre-scan check over raw pixels (no face pass): lighting + blur + resolution. */
+export function preScanIssues(data: ImageData): string[] {
+  return pixelQualityReasons(data, computeLightQuality(data));
+}
+
 export function assessImageQuality(data: ImageData, faceFound: boolean): ImageChecks {
   const light = computeLightQuality(data);
   const reasons: string[] = [];
 
   if (!faceFound) reasons.push("No face detected");
-  if (light.brightness < 60) reasons.push("Image is too dark");
-  if (light.brightness > 220) reasons.push("Image is overexposed");
-  if (light.evenness < 0.55) reasons.push("Lighting is uneven across the face");
-  if (light.sharpness < 0.15) reasons.push("Image is blurry or low-resolution");
-  if (data.width < 320 || data.height < 320) reasons.push("Image resolution is too low");
+  reasons.push(...pixelQualityReasons(data, light));
 
   if (reasons.length === 0) return { quality: "good", hasFace: faceFound };
   if (faceFound && reasons.length <= 1) return { quality: "ok", hasFace: true, reason: reasons[0] };

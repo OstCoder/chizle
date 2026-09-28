@@ -19,8 +19,8 @@ import {
   EMPTY_HAIR_STATUS,
   hubGet,
   hubSet,
-  isGroomingProductArray,
-  isHairStatusShape,
+  groomingProductArraySchema,
+  hairStatusSchema,
   makeId,
   type GroomingProduct,
   type HairStatus,
@@ -49,7 +49,7 @@ export function HaircutMatchCard({
 
   useEffect(() => {
     setHaircare(
-      hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, isHairStatusShape),
+      hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, hairStatusSchema),
     );
   }, [userId]);
 
@@ -60,7 +60,7 @@ export function HaircutMatchCard({
       userId,
       "products",
       [],
-      isGroomingProductArray,
+      groomingProductArraySchema,
     );
     if (!current.some((x) => x.name.toLowerCase() === p.name.toLowerCase())) {
       const next: GroomingProduct[] = [

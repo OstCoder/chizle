@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { CheckCircle, TactileButton } from "@/components/motion";
-import { HUB_UPDATED_EVENT, hubGet, hubSet, isAmpmShape, todayKey } from "@/lib/hub";
+import { HUB_UPDATED_EVENT, hubGet, hubSet, ampmSchema, todayKey } from "@/lib/hub";
 import { dayStatus } from "@/lib/streak";
 
 interface SkincareAMPMCardProps {
@@ -51,7 +51,7 @@ export function SkincareAMPMCard({ userId }: SkincareAMPMCardProps) {
     userId,
     `ampm:${dateKey}`,
     { am: false, pm: false },
-    isAmpmShape,
+    ampmSchema,
   );
   const status = dayStatus(userId, dateKey);
   const doneCount = Number(ampm.am) + Number(ampm.pm);

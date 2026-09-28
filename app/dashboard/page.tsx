@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { DailyRoutineChecklist } from "@/components/dashboard/DailyRoutineChecklist";
 import { HubLoading, HubNotConfigured } from "@/components/dashboard/HubStates";
 import { PanelSkeleton } from "@/components/PanelSkeleton";
+import { WeeklySummaryCard } from "@/components/dashboard/WeeklySummaryCard";
 import { WidgetErrorBoundary } from "@/components/ErrorBoundary";
 import {
   dailyTip,
@@ -80,6 +81,18 @@ export default function DashboardPage() {
                 profile={profile}
                 report={latest?.report ?? null}
               />
+            </WidgetErrorBoundary>
+          </div>
+
+          {/* 03 — Weekly recap (configurable notification/webhook) */}
+          <div className="space-y-6">
+            <SectionHeader
+              index="03"
+              title="Weekly Recap"
+              subtitle="One message a week: your latest scan against your start date — however you want it delivered."
+            />
+            <WidgetErrorBoundary label="Weekly summary">
+              <WeeklySummaryCard userId={user.id} entries={entries} />
             </WidgetErrorBoundary>
           </div>
         </div>

@@ -1,9 +1,37 @@
 import type { Metadata } from "next";
 
+const URL = "https://chizle.app";
+const OG = `${URL}/api/og`;
+
 export const metadata: Metadata = {
-  title: "Dating Profile Scorecard — Chizle",
+  title: "Face Scorecard",
   description:
-    "Get a 1–10 score across approachability, photo quality, and style for the photo you're considering, plus a verdict on using it as primary or secondary.",
+    "A dating-profile-style scorecard: overall face rating, approachability, photo quality, and style — scored from your latest scan.",
+  openGraph: {
+    title: "Face Scorecard — Chizle",
+    description:
+      "A dating-profile-style scorecard: overall face rating, approachability, photo quality, and style — scored from your latest scan.",
+    images: [
+      {
+        url: `${OG}?title=Face+Scorecard&subtitle=Overall+rating%2C+approachability%2C+photo+quality%2C+and+style+scored+from+your+scan.&tag=Score`,
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Face Scorecard — Chizle",
+    description:
+      "A dating-profile-style scorecard: overall face rating, approachability, photo quality, and style.",
+    images: [
+      {
+        url: `${OG}?title=Face+Scorecard&subtitle=Overall+rating%2C+approachability%2C+photo+quality%2C+and+style+scored+from+your+scan.&tag=Score`,
+        width: 1200,
+        height: 630,
+      },
+    ],
+  },
 };
 
 export default function ScorecardLayout({
@@ -11,5 +39,5 @@ export default function ScorecardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <>{children}</>;
 }

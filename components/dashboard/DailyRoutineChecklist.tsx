@@ -19,13 +19,13 @@ import {
   EMPTY_HAIR_STATUS,
   hubGet,
   hubSet,
-  isAmpmShape,
-  isGroomingProductArray,
-  isHairStatusShape,
-  isLogsShape,
-  isNumberValue,
-  isScentArray,
-  isScentOfDayShape,
+  ampmSchema,
+  groomingProductArraySchema,
+  hairStatusSchema,
+  dailyLogsSchema,
+  numberValueSchema,
+  scentArraySchema,
+  scentOfDaySchema,
   loadDayIds,
   todayKey,
   type DailyLogs,
@@ -79,30 +79,30 @@ export function DailyRoutineChecklist({
     userId,
     `logs:${dateKey}`,
     { workout: false, sleep: null, cleanEating: false },
-    isLogsShape,
+    dailyLogsSchema,
   );
 
   const waterGoal = waterTarget(profile ?? {});
-  const waterMl = hubGet<number>(userId, `water:${dateKey}`, 0, isNumberValue);
+  const waterMl = hubGet<number>(userId, `water:${dateKey}`, 0, numberValueSchema);
   const waterDone = waterMl >= waterGoal;
 
   const products = hubGet<GroomingProduct[]>(
     userId,
     "products",
     [],
-    isGroomingProductArray,
+    groomingProductArraySchema,
   );
   const applied = loadDayIds(userId, "products-applied", dateKey).filter((id) =>
     products.some((p) => p.id === id),
   );
   const groomingDone = products.length > 0 && applied.length >= products.length;
 
-  const scents = hubGet<Scent[]>(userId, "scents", [], isScentArray);
+  const scents = hubGet<Scent[]>(userId, "scents", [], scentArraySchema);
   const scentPick = hubGet<ScentOfDay>(
     userId,
     `scent:${dateKey}`,
     { scentId: null, occasion: "Everyday" },
-    isScentOfDayShape,
+    scentOfDaySchema,
   );
   const scentDone = scents.some((s) => s.id === scentPick.scentId);
 
@@ -143,7 +143,7 @@ export function DailyRoutineChecklist({
     userId,
     `ampm:${dateKey}`,
     { am: false, pm: false },
-    isAmpmShape,
+    ampmSchema,
   );
   const toggleAmpm = (slot: "am" | "pm") => {
     const next = { ...ampm, [slot]: !ampm[slot] };
@@ -206,10 +206,10 @@ export function DailyRoutineChecklist({
       detail:
         products.length > 0
           ? `${applied.length} of ${products.length} applied${daysSince(
-              hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, isHairStatusShape)
+              hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, hairStatusSchema)
                 .lastTrim,
             ) !== null ? ` · ${daysSince(
-              hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, isHairStatusShape)
+              hubGet<HairStatus>(userId, "haircare", EMPTY_HAIR_STATUS, hairStatusSchema)
                 .lastTrim,
             )}d since trim` : ""}`
           : "Add products to build your regimen",

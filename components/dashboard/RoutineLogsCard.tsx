@@ -8,7 +8,7 @@ import {
   EMPTY_LOGS,
   hubGet,
   hubSet,
-  isLogsShape,
+  dailyLogsSchema,
   todayKey,
   type DailyLogs,
 } from "@/lib/hub";
@@ -33,7 +33,7 @@ export function RoutineLogsCard({ userId }: RoutineLogsCardProps) {
   const [logs, setLogs] = useState<DailyLogs>(EMPTY_LOGS);
 
   useEffect(() => {
-    setLogs(hubGet<DailyLogs>(userId, `logs:${dateKey}`, EMPTY_LOGS, isLogsShape));
+    setLogs(hubGet<DailyLogs>(userId, `logs:${dateKey}`, EMPTY_LOGS, dailyLogsSchema));
   }, [userId, dateKey]);
 
   const update = (patch: Partial<DailyLogs>) => {

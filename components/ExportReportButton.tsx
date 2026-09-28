@@ -2,7 +2,11 @@
 
 import { useCallback, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import { buildRoutine, greetingName } from "@/lib/glow";
 import type { PersistedAnalysis } from "@/lib/persistence";
 import type { RatingResult } from "@/lib/ratings";
@@ -33,8 +37,9 @@ export function ExportReportButton({ entry, rating }: ExportReportButtonProps) {
       if (isSupabaseConfigured()) {
         try {
           const supabase = createClient();
-          const { data } = await supabase.auth.getUser();
-          const user = data.user;
+          // Offline-tolerant: local-session fallback keeps the greeting
+          // name available on a cached page (see resolveClientUser).
+          const user = await resolveClientUser(supabase);
           if (user) {
             userName = greetingName(user.email) || null;
             const { data: prof } = await supabase

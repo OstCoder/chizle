@@ -6,7 +6,7 @@ import { affiliateLink } from "@/lib/picks";
 import {
   hubGet,
   hubSet,
-  isGroomingProductArray,
+  groomingProductArraySchema,
   loadDayIds,
   makeId,
   todayKey,
@@ -44,7 +44,7 @@ export function ProductRegimenCard({ userId }: ProductRegimenCardProps) {
 
   useEffect(() => {
     setProducts(
-      hubGet<GroomingProduct[]>(userId, "products", [], isGroomingProductArray),
+      hubGet<GroomingProduct[]>(userId, "products", [], groomingProductArraySchema),
     );
     setApplied(loadDayIds(userId, "products-applied", dateKey));
   }, [userId, dateKey]);

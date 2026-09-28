@@ -14,11 +14,11 @@
 // streak.
 
 import {
+  ampmSchema,
+  dailyLogsSchema,
   dateKey,
+  groomingProductArraySchema,
   hubGet,
-  isAmpmShape,
-  isGroomingProductArray,
-  isLogsShape,
   loadDayIds,
   type DailyLogs,
   type GroomingProduct,
@@ -46,7 +46,7 @@ const EMPTY_DAY_LOGS: DailyLogs = {
 function dayLogs(userId: string, date: string): DailyLogs {
   // Validated: a corrupted logs entry must not crash the header streak badge
   // (which renders on every page) — fall back to an empty day instead.
-  return hubGet<DailyLogs>(userId, `logs:${date}`, EMPTY_DAY_LOGS, isLogsShape);
+  return hubGet<DailyLogs>(userId, `logs:${date}`, EMPTY_DAY_LOGS, dailyLogsSchema);
 }
 
 /** Has the user ever used the daily check-in (workout / sleep / clean eating)? */
@@ -66,7 +66,7 @@ function hasAnyFaceFitness(userId: string): boolean {
 }
 
 export function productCount(userId: string): number {
-  return hubGet<GroomingProduct[]>(userId, "products", [], isGroomingProductArray).length;
+  return hubGet<GroomingProduct[]>(userId, "products", [], groomingProductArraySchema).length;
 }
 
 export function dayStatus(
@@ -80,7 +80,7 @@ export function dayStatus(
     userId,
     `ampm:${date}`,
     { am: false, pm: false },
-    isAmpmShape,
+    ampmSchema,
   );
   const am = Boolean(ampm.am);
   const pm = Boolean(ampm.pm);

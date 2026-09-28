@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,13 +9,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // "white" is remapped via CSS variables so every existing
+        // `text-white/55`, `bg-white/[0.02]`, `border-white/10` utility
+        // automatically flips between true-white (dark mode) and a dark
+        // text colour (light mode) without touching any component files.
+        white: "rgb(var(--color-white) / <alpha-value>)",
         ink: {
-          950: "#08090d",
-          900: "#0c0d13",
-          800: "#14161e",
-          700: "#1c1f2a",
-          600: "#262a38",
-          500: "#3a3f51",
+          950: "rgb(var(--color-ink-950) / <alpha-value>)",
+          900: "rgb(var(--color-ink-900) / <alpha-value>)",
+          800: "rgb(var(--color-ink-800) / <alpha-value>)",
+          700: "rgb(var(--color-ink-700) / <alpha-value>)",
+          600: "rgb(var(--color-ink-600) / <alpha-value>)",
+          500: "rgb(var(--color-ink-500) / <alpha-value>)",
         },
         accent: {
           50: "#fff7ed",
@@ -60,7 +66,8 @@ const config: Config = {
       animation: {
         scan: "scan 3.6s ease-in-out infinite",
         "fade-up": "fade-up 0.55s ease-out both",
-        "counter-pop": "counter-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "counter-pop":
+          "counter-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
         "flame-ignite": "flame-ignite 0.8s ease-in-out 2",
       },
       backgroundImage: {

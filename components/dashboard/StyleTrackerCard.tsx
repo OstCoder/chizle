@@ -8,7 +8,7 @@ import {
   EMPTY_HAIR_STATUS,
   hubGet,
   hubSet,
-  isHairStatusShape,
+  hairStatusSchema,
   type HairStatus,
 } from "@/lib/hub";
 
@@ -37,7 +37,7 @@ export function StyleTrackerCard({ userId }: StyleTrackerCardProps) {
       userId,
       "haircare",
       EMPTY_HAIR_STATUS,
-      isHairStatusShape,
+      hairStatusSchema,
     );
     setStatus(stored);
     setDraft(stored);

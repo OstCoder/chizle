@@ -3,6 +3,40 @@
 // is namespaced by the signed-in user, so one account never reads another's
 // data, and day-keyed values reset naturally each day.
 
+import {
+  ampmSchema,
+  dailyLogsSchema,
+  dayIdArraySchema,
+  groomingProductArraySchema,
+  hairStatusSchema,
+  npsPromptRecordSchema,
+  numberValueSchema,
+  scentArraySchema,
+  scentOfDaySchema,
+  trainingVariantSchema,
+  waterGoalSchema,
+  weeklySummaryConfigSchema,
+  type Parser,
+} from "./schemas";
+
+// Value schemas for every hub-stored state object are re-exported here so
+// callers keep using hub.ts as the single public API for scoped storage
+// (hubGet(userId, key, fallback, schema)). The schemas themselves live in
+// lib/schemas.ts next to their compile-time interface contracts.
+export {
+  ampmSchema,
+  dailyLogsSchema,
+  groomingProductArraySchema,
+  hairStatusSchema,
+  npsPromptRecordSchema,
+  numberValueSchema,
+  scentArraySchema,
+  scentOfDaySchema,
+  trainingVariantSchema,
+  waterGoalSchema,
+  weeklySummaryConfigSchema,
+};
+
 const PREFIX = "chizle:hub:";
 
 // ---------------------------------------------------------------------------
@@ -47,108 +81,38 @@ function hubKey(userId: string, key: string): string {
 }
 
 /**
- * Read a JSON value from scoped storage. When `validate` is provided, a value
- * that fails it (corrupted JSON, a shape from an older/newer schema version,
- * or hand-edited storage) is discarded and the fallback is returned instead
- * of propagating data that could crash downstream render code.
+ * Read a JSON value from scoped storage, validated against `schema`.
+ *
+ * The schema is required (not optional) so no read path can silently revert
+ * to an unchecked cast. The *parsed* value is returned — schema defaults are
+ * applied and unknown keys stripped — so the declared return type T is
+ * always honest at runtime. Corrupted JSON, drifted shapes from older/newer
+ * builds, or hand-edited storage fall back instead of crashing downstream
+ * render code, with a dev-only warning naming the failing paths.
  */
 export function hubGet<T>(
   userId: string,
   key: string,
   fallback: T,
-  validate?: (value: unknown) => boolean,
+  schema: Parser<T>,
 ): T {
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(hubKey(userId, key));
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    if (validate && !validate(parsed)) {
-      console.warn(`[chizle] discarding malformed hub value for "${key}"`);
-      return fallback;
+    const result = schema.safeParse(parsed);
+    if (result.success) return result.data;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[chizle] discarding malformed hub value for "${key}":`,
+        result.error.issues.slice(0, 3),
+      );
     }
-    return parsed as T;
+    return fallback;
   } catch {
     return fallback;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Shared shape validators for the structured hub values. Guards against
-// corrupted or schema-drifted storage crashing the dashboard — every one of
-// these used to be an unchecked cast that could throw at render time.
-// ---------------------------------------------------------------------------
-
-const isObj = (v: unknown): v is Record<string, unknown> =>
-  !!v && typeof v === "object" && !Array.isArray(v);
-
-export function isLogsShape(v: unknown): boolean {
-  return (
-    isObj(v) &&
-    typeof v.workout === "boolean" &&
-    (v.sleep === null || typeof v.sleep === "string") &&
-    typeof v.cleanEating === "boolean"
-  );
-}
-
-export function isAmpmShape(v: unknown): boolean {
-  return isObj(v) && typeof v.am === "boolean" && typeof v.pm === "boolean";
-}
-
-export function isFaceFitnessDayShape(v: unknown): boolean {
-  return (
-    isObj(v) &&
-    Array.isArray(v.completed) &&
-    v.completed.every((x) => typeof x === "string")
-  );
-}
-
-export function isGroomingProductArray(v: unknown): boolean {
-  return (
-    Array.isArray(v) &&
-    v.every(
-      (p) =>
-        isObj(p) && typeof p.id === "string" && typeof p.name === "string",
-    )
-  );
-}
-
-export function isScentArray(v: unknown): boolean {
-  return (
-    Array.isArray(v) &&
-    v.every(
-      (s) =>
-        isObj(s) && typeof s.id === "string" && typeof s.name === "string",
-    )
-  );
-}
-
-export function isScentOfDayShape(v: unknown): boolean {
-  return isObj(v) && typeof v.occasion === "string";
-}
-
-export function isWaterGoalShape(v: unknown): boolean {
-  return (
-    isObj(v) &&
-    (v.mode === "auto" || v.mode === "manual") &&
-    (v.value === null || typeof v.value === "number")
-  );
-}
-
-export function isHairStatusShape(v: unknown): boolean {
-  return (
-    isObj(v) &&
-    (v.lastTrim === null || typeof v.lastTrim === "string") &&
-    (v.nextAppointment === null || typeof v.nextAppointment === "string") &&
-    (v.status === "maintaining" ||
-      v.status === "growing" ||
-      v.status === "beard") &&
-    typeof v.note === "string"
-  );
-}
-
-export function isNumberValue(v: unknown): boolean {
-  return typeof v === "number" && Number.isFinite(v);
 }
 
 export function hubSet(userId: string, key: string, value: unknown): void {
@@ -175,9 +139,7 @@ export function loadDayIds(
   key: string,
   date: string,
 ): string[] {
-  const raw = hubGet<unknown[]>(userId, `${key}:${date}`, []);
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === "string");
+  return hubGet<string[]>(userId, `${key}:${date}`, [], dayIdArraySchema);
 }
 
 export function toggleDayId(
@@ -225,7 +187,7 @@ export function consecutiveDays(
       userId,
       `${key}:${dateKey(d)}`,
       EMPTY_LOGS,
-      isLogsShape,
+      dailyLogsSchema,
     );
     if (!predicate(logs)) break;
     streak++;
@@ -237,6 +199,15 @@ export function consecutiveDays(
 // ---------------------------------------------------------------------------
 // Tracker types
 // ---------------------------------------------------------------------------
+
+/**
+ * Water goal override for the hydration tracker: derived ("auto") from the
+ * user's profile by default, or a manual ml target.
+ */
+export interface WaterGoal {
+  mode: "auto" | "manual";
+  value: number | null; // ml when manual
+}
 
 export interface HairStatus {
   lastTrim: string | null; // ISO date (yyyy-mm-dd)
@@ -267,6 +238,31 @@ export interface Scent {
 export interface ScentOfDay {
   scentId: string | null;
   occasion: string;
+}
+
+/**
+ * One-shot record for the post-7-day-streak recommendation (NPS) prompt.
+ * Written the moment the prompt is first shown so it can never interrupt
+ * twice; `score`/`answeredAt` are filled in only if the user actually answers.
+ */
+export interface NpsPromptRecord {
+  promptedAt: string; // ISO timestamp of the single showing
+  score: number | null; // 0–10, null when dismissed without answering
+  answeredAt: string | null; // ISO timestamp of the answer
+}
+
+/**
+ * Config + delivery record for the weekly summary trigger (hub key
+ * "weekly-summary"). The channel picks how the recap leaves the browser:
+ * a local Notification, a POST to the user's own webhook URL (which can
+ * relay it as an email — Zapier, Make, n8n, Knock, a serverless fn), or
+ * both. `lastSentAt` gates cadence so it fires at most once every 7 days.
+ */
+export interface WeeklySummaryConfig {
+  enabled: boolean;
+  channel: "notification" | "webhook" | "both";
+  webhookUrl: string; // "" until the user sets one
+  lastSentAt: string | null; // ISO timestamp of the last successful send
 }
 
 export function makeId(): string {

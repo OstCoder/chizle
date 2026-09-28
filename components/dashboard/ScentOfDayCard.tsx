@@ -5,8 +5,8 @@ import { Check, Sparkle, X } from "lucide-react";
 import {
   hubGet,
   hubSet,
-  isScentArray,
-  isScentOfDayShape,
+  scentArraySchema,
+  scentOfDaySchema,
   makeId,
   todayKey,
   type Scent,
@@ -50,13 +50,13 @@ export function ScentOfDayCard({ userId }: ScentOfDayCardProps) {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setScents(hubGet<Scent[]>(userId, "scents", [], isScentArray));
+    setScents(hubGet<Scent[]>(userId, "scents", [], scentArraySchema));
     setPick(
       hubGet<ScentOfDay>(
         userId,
         `scent:${dateKey}`,
         { scentId: null, occasion: "Everyday" },
-        isScentOfDayShape,
+        scentOfDaySchema,
       ),
     );
   }, [userId, dateKey]);

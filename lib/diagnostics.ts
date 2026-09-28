@@ -11,6 +11,11 @@ export const IMAGE_QUALITY_REASONS = [
   "Lighting is uneven across the face",
   "Image is blurry or low-resolution",
   "Image resolution is too low",
+  // Angle reasons come from the uploader's pre-scan landmark pass
+  // (lib/uploadDiagnostics), not assessImageQuality — they gate the upload
+  // so a side-on or tilted shot never reaches the scan.
+  "Face is turned too far to the side",
+  "Photo is tilted at an angle",
 ] as const;
 
 export type ImageQualityReason = (typeof IMAGE_QUALITY_REASONS)[number];
@@ -31,6 +36,10 @@ export const IMAGE_QUALITY_TIPS: Record<ImageQualityReason, string> = {
     "Hold the camera steady (lean your elbow on a table) and use a higher resolution. Tap to focus on your eyes before taking the shot.",
   "Image resolution is too low":
     "Use a photo at least 320×320 px — a modern phone's front camera produces 1200×1600 by default, which is plenty.",
+  "Face is turned too far to the side":
+    "Face the camera straight-on — your whole face in frame, both eyes visible, chin parallel to the lens.",
+  "Photo is tilted at an angle":
+    "Level the camera with your eyes and keep your head upright — avoid shooting from a diagonal or heavily rotated angle.",
 };
 
 /**

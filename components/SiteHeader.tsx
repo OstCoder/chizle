@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LogIn, LogOut, Menu, ScanFace, X } from "lucide-react";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import { StreakBadge } from "@/components/StreakBadge";
+import { StreakNpsPrompt } from "@/components/StreakNpsPrompt";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { WidgetErrorBoundary } from "@/components/ErrorBoundary";
 import type { User } from "@supabase/supabase-js";
 
@@ -21,7 +27,10 @@ export function SiteHeader() {
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    // Offline-tolerant: falls back to the local session so a cached offline
+    // page keeps its signed-in header (streak badge, sign-out) instead of
+    // flipping to "Sign in" the moment getUser() can't reach the server.
+    resolveClientUser(supabase).then(setUser);
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -52,6 +61,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <ThemeToggle />
           {user && (
             <WidgetErrorBoundary label="Streak badge">
               <StreakBadge userId={user.id} />
@@ -72,6 +82,7 @@ export function SiteHeader() {
 
         {/* Mobile: streak badge + hamburger */}
         <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
           {user && (
             <WidgetErrorBoundary label="Streak badge">
               <StreakBadge userId={user.id} />
@@ -89,6 +100,14 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
+
+      {/* One-shot, gentle "recommend Chizle?" ask once a streak hits 7 days.
+          Fixed-position, so it lives here once rather than per nav. */}
+      {user && (
+        <WidgetErrorBoundary label="Recommend prompt">
+          <StreakNpsPrompt userId={user.id} />
+        </WidgetErrorBoundary>
+      )}
 
       {open && (
         <nav id="mobile-nav" className="border-t border-white/10 px-4 pb-4 pt-2 md:hidden">

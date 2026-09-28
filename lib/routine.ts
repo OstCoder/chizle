@@ -3,6 +3,8 @@
 // signed-in user and the calendar date, so one account never sees another's
 // (or yesterday's) checklist state.
 
+import { dayIdArraySchema } from "./schemas";
+
 const PREFIX = "chizle:routine:";
 
 export function todayKey(): string {
@@ -18,9 +20,10 @@ function readIds(key: string): string[] {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((v): v is string => typeof v === "string");
+    // Schema-validated: a non-array payload (corruption, schema drift) falls
+    // back to an empty checklist instead of an unchecked cast.
+    const result = dayIdArraySchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : [];
   } catch {
     return [];
   }

@@ -18,7 +18,11 @@ import {
   setStorageScope,
   type PersistedAnalysis,
 } from "@/lib/persistence";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import {
   imageDataToDataURL,
   imageDataToThumbURL,
@@ -27,6 +31,7 @@ import {
 import { cap } from "@/lib/utils";
 import { HAIR_COLOR_LABEL, hairTextureLabel } from "@/lib/hair";
 import { rateFace } from "@/lib/ratings";
+import { tipsForReason } from "@/lib/diagnostics";
 import { PanelSkeleton } from "@/components/PanelSkeleton";
 import { EmptyStateCard } from "@/components/EmptyState";
 import { ScanFace, Sparkles, ChevronDown } from "lucide-react";
@@ -79,6 +84,12 @@ export default function AnalyzePage() {
     () => (report && report.imageQuality.hasFace ? rateFace(report) : null),
     [report],
   );
+  // Actionable fixes for the quality flags ("Image is too dark" → what to
+  // do about it), so a flagged scan always ends in a concrete next step.
+  const qualityTips = useMemo(
+    () => tipsForReason(report?.imageQuality.reason),
+    [report?.imageQuality.reason],
+  );
   // The persisted entry matching what's on screen: the restored entry when
   // viewing history, otherwise the freshly saved head of the history list.
   // The generatedAt check guarantees the PDF can't mix a new report with an
@@ -91,7 +102,7 @@ export default function AnalyzePage() {
     null;
 
   const refreshHistory = useCallback(() => {
-    setHistory(loadHistory("analyze") as PersistedAnalysis[]);
+    setHistory(loadHistory("analyze"));
   }, []);
 
   // Resolve the signed-in user before touching persisted history so each
@@ -104,9 +115,12 @@ export default function AnalyzePage() {
         return;
       }
       const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
+      // Offline-tolerant: getUser() alone loses the session whenever the
+      // auth server is unreachable, which would drop saved scans into the
+      // anon bucket while offline.
+      const user = await resolveClientUser(supabase);
       if (cancelled) return;
-      setStorageScope(data.user?.id ?? null);
+      setStorageScope(user?.id ?? null);
       setScopeReady(true);
     })();
     return () => {
@@ -343,12 +357,32 @@ export default function AnalyzePage() {
                 </div>
               )}
               {report.imageQuality.reason && (
-                <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-white/65">
-                  <span className="font-medium text-amber-200">
-                    Quality flags:
-                  </span>{" "}
-                  {report.imageQuality.reason}
-                </p>
+                <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-white/65">
+                  <p>
+                    <span className="font-medium text-amber-200">
+                      Quality flags:
+                    </span>{" "}
+                    {report.imageQuality.reason}
+                  </p>
+                  {/* Actionable fixes for each flag (low light, blur, no
+                      face, …) so a flagged scan always ends in a next
+                      step rather than a dead end. */}
+                  {qualityTips.length > 0 && (
+                    <ul className="mt-1.5 space-y-1">
+                      {qualityTips.map((tip) => (
+                        <li
+                          key={tip}
+                          className="flex gap-1.5 text-white/55"
+                        >
+                          <span className="text-amber-300/70" aria-hidden="true">
+                            ›
+                          </span>
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
               <p className="mt-4 text-xs text-white/40">
                 Scroll for the full breakdown below.

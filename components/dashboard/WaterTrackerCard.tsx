@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { Check, Droplets, Minus, Plus, RotateCcw } from "lucide-react";
-import { hubGet, hubSet, isNumberValue, isWaterGoalShape, todayKey } from "@/lib/hub";
+import {
+  hubGet,
+  hubSet,
+  numberValueSchema,
+  todayKey,
+  waterGoalSchema,
+  type WaterGoal,
+} from "@/lib/hub";
 
 interface WaterTrackerCardProps {
   userId: string;
   recommended: number; // ml goal derived from the user's profile
 }
 
-interface WaterGoal {
-  mode: "auto" | "manual";
-  value: number | null; // ml when manual
-}
-
+// WaterGoal lives in lib/hub.ts (the storage module that owns the
+// "water-goal" key) so its schema contract in lib/schemas.ts can pin it.
 const EMPTY_WATER_GOAL: WaterGoal = { mode: "auto", value: null };
 
 const QUICK = [250, 500];
@@ -32,8 +36,8 @@ export function WaterTrackerCard({ userId, recommended }: WaterTrackerCardProps)
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    setMl(hubGet<number>(userId, `water:${dateKey}`, 0, isNumberValue));
-    const stored = hubGet<WaterGoal>(userId, "water-goal", EMPTY_WATER_GOAL, isWaterGoalShape);
+    setMl(hubGet<number>(userId, `water:${dateKey}`, 0, numberValueSchema));
+    const stored = hubGet<WaterGoal>(userId, "water-goal", EMPTY_WATER_GOAL, waterGoalSchema);
     setGoal(stored);
     setDraft(stored.mode === "manual" && stored.value ? String(stored.value) : "");
   }, [userId, dateKey]);

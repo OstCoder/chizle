@@ -18,7 +18,11 @@ import {
   setStorageScope,
   type PersistedAnalysis,
 } from "@/lib/persistence";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import {
   imageDataToDataURL,
   imageDataToThumbURL,
@@ -26,6 +30,7 @@ import {
 } from "@/lib/imageData";
 import { cap } from "@/lib/utils";
 import { scorecard } from "@/lib/scorecard";
+import { scorecardModeSchema } from "@/lib/schemas";
 import type { ScorecardMode } from "@/types/analysis";
 import { Smartphone, Sparkles, Users } from "lucide-react";
 
@@ -52,7 +57,11 @@ function readStoredMode(): ScorecardMode {
   if (typeof window === "undefined") return "app";
   try {
     const raw = window.localStorage.getItem(MODE_STORAGE_KEY);
-    return raw === "irl" ? "irl" : "app";
+    // Schema-validated against scorecardModeSchema ("app" | "irl") — a stale
+    // or hand-edited value falls back to the default instead of leaking an
+    // unchecked string into scoring.
+    const result = scorecardModeSchema.safeParse(raw);
+    return result.success ? result.data : "app";
   } catch {
     return "app";
   }
@@ -87,7 +96,7 @@ export default function ScorecardPage() {
   }, [mode]);
 
   const refreshHistory = useCallback(() => {
-    setHistory(loadHistory("scorecard") as PersistedAnalysis[]);
+    setHistory(loadHistory("scorecard"));
   }, []);
 
   // Resolve the signed-in user before touching persisted history so each
@@ -100,9 +109,11 @@ export default function ScorecardPage() {
         return;
       }
       const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
+      // Offline-tolerant: see analyze/page.tsx — keeps the account scope
+      // intact when the auth server is unreachable.
+      const user = await resolveClientUser(supabase);
       if (cancelled) return;
-      setStorageScope(data.user?.id ?? null);
+      setStorageScope(user?.id ?? null);
       setScopeReady(true);
     })();
     return () => {

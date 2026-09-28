@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { Skeleton } from "@/components/Skeleton";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
 
 export default function UpdatePasswordPage() {
@@ -49,7 +50,27 @@ export default function UpdatePasswordPage() {
   }
 
   if (checking) {
-    return <div className="card mx-auto h-[380px] w-full max-w-md animate-pulse bg-white/[0.03]" aria-label="Checking reset link" />;
+    return (
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label="Checking reset link"
+        className="card mx-auto h-[380px] w-full max-w-md space-y-4 p-6 sm:p-8"
+      >
+        {/* Shimmer skeleton of the reset form while the link/session is
+            verified locally. */}
+        <Skeleton className="h-12 w-12 rounded-2xl" />
+        <div className="space-y-2 pt-2">
+          <Skeleton className="h-7 w-56 max-w-full" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-[85%]" />
+        </div>
+        <div className="space-y-3 pt-2">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
   return (

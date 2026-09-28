@@ -12,6 +12,12 @@
 // individually removable.
 
 import type { AnalysisReport, LandmarkPoint } from "@/types/analysis";
+import {
+  devValidate,
+  parseOrDrop,
+  persistedAnalysisSchema,
+  persistedCompareEntrySchema,
+} from "./schemas";
 
 export interface PersistedAnalysis {
   id: string;
@@ -81,8 +87,10 @@ function readJson<T>(key: string): T | null {
 // ---------------------------------------------------------------------------
 // Schema validation & versioning. localStorage survives app upgrades, so a
 // payload written by an older (or newer) build can drift from what the
-// current render code expects. Rather than trusting a cast, every read
-// validates the shape and silently drops malformed entries — corrupt data
+// current render code expects. Rather than trusting a cast, every read is
+// parsed against the Zod schema in lib/schemas.ts (which is contract-checked
+// against these interfaces at compile time) — malformed entries are dropped
+// and legacy fields are repaired via schema defaults, so corrupt data
 // degrades to "no history" instead of crashing the dashboard.
 // ---------------------------------------------------------------------------
 
@@ -93,51 +101,12 @@ function isObj(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
-/** Structural check for an AnalysisReport — deep enough to catch drift and
- *  corruption without validating all ~40 fields. */
-function isReportShape(v: unknown): boolean {
-  if (!isObj(v)) return false;
-  const r = v as Record<string, unknown>;
-  const num = (x: unknown) => typeof x === "number" && Number.isFinite(x);
-  return (
-    isObj(r.ratios) &&
-    num((r.ratios as Record<string, unknown>).jawlineAngle) &&
-    isObj(r.symmetry) &&
-    num((r.symmetry as Record<string, unknown>).overall) &&
-    isObj(r.posture) &&
-    isObj(r.smile) &&
-    num((r.smile as Record<string, unknown>).score) &&
-    isObj(r.eyes) &&
-    isObj(r.light) &&
-    num((r.light as Record<string, unknown>).brightness) &&
-    isObj(r.imageQuality) &&
-    typeof r.summary === "string" &&
-    typeof r.generatedAt === "string"
-  );
-}
-
-function isLandmarksShape(v: unknown): boolean {
-  return (
-    v === null ||
-    (Array.isArray(v) &&
-      (v.length === 0 ||
-        (isObj(v[0]) &&
-          typeof v[0].x === "number" &&
-          typeof v[0].y === "number")))
-  );
-}
-
-function isPersistedAnalysisShape(v: unknown): boolean {
-  if (!isObj(v)) return false;
-  const e = v as Record<string, unknown>;
-  return (
-    typeof e.id === "string" &&
-    isReportShape(e.report) &&
-    isLandmarksShape(e.landmarks) &&
-    (e.image === null || typeof e.image === "string") &&
-    typeof e.thumb === "string" &&
-    typeof e.savedAt === "string"
-  );
+/**
+ * Parse one history entry, returning typed data (schema defaults applied) or
+ * null when the payload is too malformed to trust.
+ */
+function parseEntry(v: unknown): PersistedAnalysis | null {
+  return parseOrDrop(persistedAnalysisSchema, v, "history entry");
 }
 
 /**
@@ -154,7 +123,9 @@ function isPersistedAnalysisShape(v: unknown): boolean {
 function readHistory(slot: PersistSlot): PersistedAnalysis[] {
   const raw = readJson<unknown>(historyKey(slot));
   if (Array.isArray(raw)) {
-    return raw.filter(isPersistedAnalysisShape);
+    return raw
+      .map(parseEntry)
+      .filter((e): e is PersistedAnalysis => e !== null);
   }
   if (isObj(raw) && Array.isArray(raw.entries)) {
     if (
@@ -166,7 +137,9 @@ function readHistory(slot: PersistSlot): PersistedAnalysis[] {
       );
       return [];
     }
-    return raw.entries.filter(isPersistedAnalysisShape);
+    return raw.entries
+      .map(parseEntry)
+      .filter((e): e is PersistedAnalysis => e !== null);
   }
   return [];
 }
@@ -196,12 +169,11 @@ function writeHistory(slot: PersistSlot, list: PersistedAnalysis[]): void {
 function readCompareHistory(): PersistedCompareEntry[] {
   const raw = readJson<unknown>(scopedPrefix() + "history:compare");
   if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (v): v is PersistedCompareEntry =>
-      isObj(v) &&
-      isPersistedAnalysisShape(v.before) &&
-      isPersistedAnalysisShape(v.after),
-  );
+  return raw
+    .map((v) =>
+      parseOrDrop(persistedCompareEntrySchema, v, "compare history entry"),
+    )
+    .filter((e): e is PersistedCompareEntry => e !== null);
 }
 
 function writeCompareHistory(list: PersistedCompareEntry[]): void {
@@ -238,6 +210,9 @@ export function saveAnalysis(
     thumb: payload.thumb,
     savedAt: new Date().toISOString(),
   };
+  // Dev-only: a report that doesn't match its schema (NaN metric, missing
+  // field, wrong enum) is logged with exact paths the moment it's persisted.
+  devValidate(persistedAnalysisSchema, entry, `saved ${slot} entry`);
   const list = readHistory(slot);
   writeHistory(slot, [entry, ...demoteOldestImage(list)]);
   return entry;
@@ -274,6 +249,7 @@ export function saveComparePair(payload: {
     },
     savedAt: new Date().toISOString(),
   };
+  devValidate(persistedCompareEntrySchema, entry, "saved compare entry");
   const list = readCompareHistory();
   const demoted = list.length > 0 ? [{ ...list[0], before: { ...list[0].before, image: null }, after: { ...list[0].after, image: null } }, ...list.slice(1)] : list;
   writeCompareHistory([entry, ...demoted]);
@@ -292,8 +268,13 @@ export function loadLatestCompare(): PersistedCompareEntry | null {
   return list[0] ?? null;
 }
 
-/** Full history for a slot, newest first. */
-export function loadHistory(slot: PersistSlot): PersistedAnalysis[] | PersistedCompareEntry[] {
+/** Full history for a slot, newest first. Overloads keep the element type
+ *  exact per slot so callers never need an `as` cast. */
+export function loadHistory(slot: "analyze" | "scorecard"): PersistedAnalysis[];
+export function loadHistory(slot: "compare"): PersistedCompareEntry[];
+export function loadHistory(
+  slot: PersistSlot,
+): PersistedAnalysis[] | PersistedCompareEntry[] {
   return slot === "compare" ? readCompareHistory() : readHistory(slot);
 }
 
