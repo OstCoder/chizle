@@ -4,7 +4,11 @@ import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, ScanFace, ShieldCheck } from "lucide-react";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 import { Skeleton } from "@/components/Skeleton";
 
 function safeReturnTo(value: string | null): string {
@@ -34,9 +38,17 @@ function AuthForm() {
   useEffect(() => {
     if (!configured) return;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) router.replace(returnTo);
+    // Local-first: a raw getUser() can't reach the auth server on a flaky
+    // connection, which used to strand an already-signed-in visitor on the
+    // login screen until a manual refresh. resolveClientUser only reports
+    // "no user" when the session is genuinely absent.
+    let cancelled = false;
+    resolveClientUser(supabase).then((user) => {
+      if (!cancelled && user) router.replace(returnTo);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [configured, returnTo, router]);
 
   async function handleForgotPassword() {

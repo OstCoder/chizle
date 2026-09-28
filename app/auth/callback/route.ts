@@ -11,5 +11,22 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
+  // Prefer forwarded headers: behind the hosting proxy the raw Host header is
+  // rewritten to the internal address (localhost:3000), so requestUrl.origin
+  // would bounce the freshly confirmed account to a URL their browser can't
+  // reach. X-Forwarded-Host/Proto carry the real public origin instead; fall
+  // back to requestUrl.origin when no proxy headers exist (plain `next dev`).
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  // Proxy headers can be comma-joined lists — the first value is the client-
+  // facing origin.
+  const host =
+    (forwardedHost ?? request.headers.get("host"))?.split(",")[0].trim() || null;
+  const proto =
+    (forwardedProto ?? requestUrl.protocol.replace(":", ""))
+      .split(",")[0]
+      .trim();
+  const origin = host ? `${proto}://${host}` : requestUrl.origin;
+
+  return NextResponse.redirect(new URL(next, origin));
 }

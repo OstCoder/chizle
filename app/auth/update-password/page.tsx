@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/browser";
+import {
+  createClient,
+  isSupabaseConfigured,
+  resolveClientUser,
+} from "@/lib/supabase/browser";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -23,8 +27,11 @@ export default function UpdatePasswordPage() {
       return;
     }
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) setNoSession(true);
+    // Local-first (see resolveClientUser): only a genuinely absent session
+    // means the reset link is dead — a failed auth-API call must not show
+    // the "missing or expired link" dead end.
+    resolveClientUser(supabase).then((user) => {
+      if (!user) setNoSession(true);
       setChecking(false);
     });
   }, [configured]);
