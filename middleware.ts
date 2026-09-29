@@ -10,32 +10,36 @@ const protectedPaths = [
   "/scorecard",
 ];
 
-/**
- * True when a getUser() failure is an *infrastructure* problem — the auth API
- * was unreachable, rate-limited (429), or returned a 5xx — rather than a
- * definitive rejection of the session. Only a definitive rejection may read as
- * "signed out"; a failed validation must never 307 a perfectly good session
- * back to /auth (that is exactly what threw freshly signed-in accounts back
- * to the login page on every in-app navigation until they refreshed).
- */
-function isRetryableAuthError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const e = error as { name?: string; status?: number };
-  // AuthRetryableFetchError — auth-js's own "safe to retry" classification.
-  if (typeof e.name === "string" && e.name.includes("Retryable")) return true;
-  // fetch() network failure (TypeError: fetch failed).
-  if (e.name === "TypeError") return true;
-  return (
-    typeof e.status === "number" && (e.status === 0 || e.status === 429 || e.status >= 500)
-  );
-}
-
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) return response;
+
+  /**
+   * Redirect, carrying any cookies the session work below accumulated on
+   * `response` (a token refresh inside getUser()/getSession() rotates the
+   * refresh token and records the new pair via setAll).
+   *
+   * Dropping them on a redirect — which is exactly what building a fresh
+   * NextResponse.redirect() did — leaves the browser holding a refresh
+   * token the server has already consumed. Supabase refresh tokens are
+   * single-use, so the next navigation's validation fails *definitively*
+   * (status 400 "Invalid Refresh Token"), the cookie fallback below finds
+   * nothing usable, and the user is 307'd back to /auth: the "click a tab
+   * and get sent to login" bug. Every redirect must therefore inherit the
+   * refreshed cookies.
+   */
+  const redirectWithCookies = (destination: URL) => {
+    const redirectResponse = NextResponse.redirect(destination);
+    // ResponseCookies entries are flat ({name, value, path, expires, ...});
+    // the set() overload accepts the whole object as-is.
+    response.cookies.getAll().forEach((cookie) =>
+      redirectResponse.cookies.set(cookie),
+    );
+    return redirectResponse;
+  };
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -51,20 +55,22 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Validate against the auth API, but distinguish "session rejected" from
-  // "validation failed": on a retryable failure the request still carries a
-  // session cookie, so fall back to it for routing and let the client
-  // re-validate. Only a definitively absent/rejected session redirects.
+  // Validate against the auth API, but never let a failed *lookup* read as
+  // "signed out": whenever getUser() can't produce a user for any reason —
+  // flaky network, rate limit, transient auth-API error — fall back to the
+  // session cookie the request already carries and let the client
+  // re-validate. Middleware only gates *routing* here; real data access is
+  // enforced by RLS on every query, so the conservative failure mode is
+  // "render the page and let the client sort it out", never "307 a good
+  // session back to the login page".
   let user: { id: string } | null = null;
-  let userError: unknown = null;
   try {
     const result = await supabase.auth.getUser();
     user = result.data.user;
-    userError = result.error;
-  } catch (err) {
-    userError = err;
+  } catch {
+    user = null;
   }
-  if (!user && isRetryableAuthError(userError)) {
+  if (!user) {
     try {
       const { data } = await supabase.auth.getSession();
       user = data.session?.user ?? null;
@@ -85,7 +91,7 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth";
     loginUrl.searchParams.set("returnTo", pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectWithCookies(loginUrl);
   }
 
   if (!user) return response;
@@ -102,15 +108,15 @@ export async function middleware(request: NextRequest) {
 
   if (isAuth || isHome) {
     const destination = completed === false ? "/onboarding" : "/dashboard";
-    return NextResponse.redirect(new URL(destination, request.url));
+    return redirectWithCookies(new URL(destination, request.url));
   }
 
   if (isProtected && completed === false) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+    return redirectWithCookies(new URL("/onboarding", request.url));
   }
 
   if (isOnboarding && completed === true && request.nextUrl.searchParams.get("edit") !== "true") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return redirectWithCookies(new URL("/dashboard", request.url));
   }
 
   return response;

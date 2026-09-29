@@ -21,7 +21,7 @@
  * Bump VERSION whenever the cached shell should be discarded wholesale.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const PAGES_CACHE = `chizle-pages-${VERSION}`;
 const ASSETS_CACHE = `chizle-assets-${VERSION}`;
 const OFFLINE_URL = "/offline";

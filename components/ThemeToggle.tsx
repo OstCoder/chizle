@@ -108,9 +108,18 @@ export function ThemeToggle({ className }: { className?: string }) {
   // Re-assert the resolved color after hydration and on every route change:
   // navigation refreshes parts of <head>, and a rebuilt theme-color meta
   // would otherwise fall back to its server-rendered OS color.
+  //
+  // IMPORTANT: re-read the persisted preference instead of trusting this
+  // instance's state. The site header renders TWO toggles (desktop nav +
+  // mobile menu) with independent state; without re-reading, the toggle the
+  // user did NOT click would re-apply its stale value on every navigation,
+  // silently reverting the choice just made (e.g. flipping back to light
+  // when returning to the sign-in page).
   useEffect(() => {
     if (!mounted) return;
-    apply(resolve(theme));
+    const saved = readSaved();
+    if (saved !== theme) setLocal(saved);
+    apply(resolve(saved));
   }, [mounted, theme, pathname]);
 
   // Listen for OS preference changes when in "system" mode.
@@ -181,6 +190,10 @@ export const themePreloadScript = `(function(){
   try {
     var t = localStorage.getItem('${STORAGE_KEY}');
     var c = document.documentElement.classList;
+    // Clear first so a stale class (bfcache restore, prior apply) can never
+    // survive alongside the freshly resolved one.
+    c.remove('light');
+    c.remove('dark');
     if (t === 'light') c.add('light');
     else if (t === 'dark') c.add('dark');
     else {

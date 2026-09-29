@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, ScanFace, ShieldCheck } from "lucide-react";
 import {
@@ -24,7 +24,6 @@ export default function AuthPage() {
 }
 
 function AuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = safeReturnTo(searchParams.get("returnTo"));
   const [mode, setMode] = useState<"login" | "signup">("signup");
@@ -44,12 +43,17 @@ function AuthForm() {
     // "no user" when the session is genuinely absent.
     let cancelled = false;
     resolveClientUser(supabase).then((user) => {
-      if (!cancelled && user) router.replace(returnTo);
+      // Full page navigation, not router.replace(): the header links to
+      // /analyze, /grooming and /habits were prefetched while signed out,
+      // so the router cache can still hold middleware's /auth redirect for
+      // them. Client-side routing would replay that stale redirect and
+      // bounce a perfectly signed-in user straight back to this page.
+      if (!cancelled && user) window.location.replace(returnTo);
     });
     return () => {
       cancelled = true;
     };
-  }, [configured, returnTo, router]);
+  }, [configured, returnTo]);
 
   async function handleForgotPassword() {
     setBusy(true);
@@ -90,7 +94,9 @@ function AuthForm() {
         });
         if (signUpError) throw signUpError;
         if (data.session) {
-          router.replace("/onboarding");
+          // Full navigation: clears any signed-out prefetch of /onboarding
+          // from the router cache (see the session-restore effect above).
+          window.location.replace("/onboarding");
         } else {
           setMessage("Check your email to confirm your account, then return here to continue.");
         }
@@ -100,7 +106,13 @@ function AuthForm() {
           password,
         });
         if (signInError) throw signInError;
-        router.replace(returnTo);
+        // Full page navigation rather than router.replace(): navigating
+        // client-side could replay a middleware redirect that was prefetched
+        // into the router cache while still signed out, sending a freshly
+        // signed-in user back to this login page the moment they clicked a
+        // dashboard tab. A full load also re-runs middleware against the
+        // brand-new session cookies.
+        window.location.replace(returnTo);
       }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Something went wrong.");
